@@ -1,0 +1,792 @@
+import AVFoundation
+import Accelerate
+import Foundation
+
+class VoiceChangerAudioEngine: ObservableObject {
+    private var audioEngine: AVAudioEngine
+    private var inputNode: AVAudioInputNode
+    private var outputNode: AVAudioOutputNode
+    private var playerNode: AVAudioPlayerNode
+    private var mixerNode: AVAudioMixerNode       // Output mixer
+
+    // Audio units for effects
+    private var pitchUnit: AVAudioUnitTimePitch
+    private var reverbUnit: AVAudioUnitReverb
+    private var userEqUnit: AVAudioUnitEQ  // User tone controls (bass/mid/treble)
+    private var eqUnit: AVAudioUnitEQ      // Formant & vocal tract processing
+    private var distortionUnit: AVAudioUnitDistortion
+
+    // Voice processing parameters
+    @Published var pitchShift: Float = 0.0 { didSet { updatePitchShift() } }
+    @Published var formantShift: Float = 1.0 { didSet { updateFormantShift() } }
+    @Published var timeStretch: Float = 1.0 { didSet { updateTimeStretch() } }
+    @Published var vocalTractLength: Float = 1.0 { didSet { updateVocalTractLength() } }
+    @Published var noiseReduction: Float = 0.0 { didSet { updateNoiseReduction() } }
+    @Published var masterVolume: Float = 2.5 { didSet { updateMasterVolume() } }
+    @Published var bassGain: Float = 0.0 { didSet { updateEQ() } }
+    @Published var midGain: Float = 0.0 { didSet { updateEQ() } }
+    @Published var trebleGain: Float = 0.0 { didSet { updateEQ() } }
+    @Published var reverbAmount: Float = 0.0 { didSet { updateReverb() } }
+    @Published var bitDepth: Float = 16.0 { didSet { updateBitDepth() } }
+
+    // Audio level monitoring
+    @Published var inputLevel: Float = 0.0
+    @Published var outputLevel: Float = 0.0
+    @Published var isProcessing: Bool = false
+
+    // Processing state with error handling
+    @Published var processingState: ProcessingState = .idle
+    @Published var lastError: AudioEngineError?
+
+    // Recording and playback
+    @Published var isRecording: Bool = false
+    @Published var isPlayingBack: Bool = false
+    @Published var playbackProgress: Double = 0.0
+
+    // Headphone detection
+    @Published var isHeadphonesConnected: Bool = false
+    @Published var monitoringMode: MonitoringMode = .speaker
+
+    private var audioRecorder: AudioRecorder?
+    private var recordingFile: AVAudioFile?
+    private var playbackFile: AVAudioFile?
+    private var playbackPlayerNode: AVAudioPlayerNode?
+
+    // Monitoring modes
+    enum MonitoringMode {
+        case speaker        // Output to speaker (feedback risk)
+        case headphones     // Output to headphones (safe)
+        case direct         // Direct monitoring only (no output)
+    }
+
+    // Circular buffer for real-time processing
+    private var circularBuffer: CircularBuffer?
+    private let bufferSize = 8192
+
+    // Analysis data for visualization
+    @Published var waveformData: [Float] = []
+    @Published var spectrumData: [Float] = []
+
+    private var levelTimer: Timer?
+
+    private var isSetup = false
+
+    // Optimized FFT processor
+    private var fftProcessor: OptimizedFFTProcessor!
+    
+    // Direct audio routing - no buffering or scheduling needed
+
+    init() {
+        audioEngine = AVAudioEngine()
+        inputNode = audioEngine.inputNode
+        outputNode = audioEngine.outputNode
+        playerNode = AVAudioPlayerNode()
+        mixerNode = AVAudioMixerNode()       // Output mixer
+
+        // Initialize audio units
+        pitchUnit = AVAudioUnitTimePitch()
+        reverbUnit = AVAudioUnitReverb()
+        userEqUnit = AVAudioUnitEQ(numberOfBands: 3)  // User tone controls
+        eqUnit = AVAudioUnitEQ(numberOfBands: 3)      // Formant processing
+        distortionUnit = AVAudioUnitDistortion()
+
+        // Configure pitch unit for low latency
+        pitchUnit.pitch = 0.0
+        pitchUnit.rate = 1.0
+        pitchUnit.overlap = 8.0 // Default overlap for balance between quality and latency
+        // Lower overlap = less latency (8 is default, good balance)
+
+        // Initialize recorder
+        audioRecorder = AudioRecorder()
+
+        // Initialize FFT processor
+        fftProcessor = OptimizedFFTProcessor(fftLength: 1024)
+
+        setupEQ()
+        setupReverb()
+        setupHeadphoneDetection()
+    }
+
+    private func setupHeadphoneDetection() {
+        #if os(iOS)
+        // Check initial headphone state
+        checkHeadphoneStatus()
+
+        // Listen for route changes (headphones plugged/unplugged)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleRouteChange),
+            name: AVAudioSession.routeChangeNotification,
+            object: nil
+        )
+        #endif
+    }
+
+    @objc private func handleRouteChange(notification: Notification) {
+        checkHeadphoneStatus()
+    }
+
+    private func checkHeadphoneStatus() {
+        #if os(iOS)
+        let session = AVAudioSession.sharedInstance()
+        let outputs = session.currentRoute.outputs
+
+        let isHeadphones = outputs.contains { output in
+            output.portType == .headphones ||
+            output.portType == .bluetoothA2DP ||
+            output.portType == .bluetoothLE ||
+            output.portType == .bluetoothHFP
+        }
+
+        DispatchQueue.main.async {
+            self.isHeadphonesConnected = isHeadphones
+            self.monitoringMode = isHeadphones ? .headphones : .speaker
+
+            if isHeadphones {
+                print("✓ Headphones connected - Safe mode")
+            } else {
+                print("⚠️ No headphones - Feedback risk with speaker")
+            }
+        }
+        #endif
+    }
+
+    private func setupIfNeeded() throws {
+        guard !isSetup else { return }
+        try setupAudioSession()
+        setupAudioGraph()
+        isSetup = true
+    }
+
+    private func setupAudioSession() throws {
+        #if os(iOS)
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+
+            // Configure based on headphone status
+            if isHeadphonesConnected {
+                // With headphones: Can use higher quality, no feedback risk
+                // Allow all Bluetooth profiles for maximum compatibility
+                try audioSession.setCategory(.playAndRecord,
+                                           mode: .default,  // Higher quality than voiceChat
+                                           options: [.allowBluetoothA2DP, .allowBluetoothHFP])
+                print("🎧 Headphones mode: High quality, no echo cancellation needed")
+            } else {
+                // Without headphones: Use aggressive echo cancellation
+                try audioSession.setCategory(.playAndRecord,
+                                           mode: .voiceChat,  // Aggressive echo cancellation
+                                           options: [.defaultToSpeaker, .allowBluetoothA2DP, .allowBluetoothHFP])
+
+                // Enable echo cancellation if available (iOS 18.2+)
+                if #available(iOS 18.2, *) {
+                    if audioSession.isEchoCancelledInputAvailable {
+                        try audioSession.setPrefersEchoCancelledInput(true)
+                        print("🔊 Speaker mode: Echo cancellation enabled (iOS 18.2+)")
+                    }
+                } else {
+                    print("🔊 Speaker mode: Using voiceChat echo cancellation")
+                }
+            }
+
+            // Set preferred sample rate BEFORE activating
+            // Use 44100 Hz which is more commonly supported
+            try audioSession.setPreferredSampleRate(44100)
+
+            // Buffer duration - ultra-low latency mode
+            // With 1024 sample buffers @ 48kHz = ~21ms latency (near-real-time)
+            let bufferDuration: TimeInterval = 0.0021  // ~2ms for ultra-low latency
+            try audioSession.setPreferredIOBufferDuration(bufferDuration)
+
+            // Now activate the session
+            try audioSession.setActive(true)
+
+            print("Audio session sample rate: \(audioSession.sampleRate)")
+            print("Audio session IO buffer duration: \(audioSession.ioBufferDuration)")
+            print("Audio session mode: \(audioSession.mode.rawValue)")
+        } catch {
+            print("Audio session setup failed: \(error)")
+            throw AudioEngineError.audioSessionConfigurationFailed(error)
+        }
+        #endif
+    }
+
+    private func setupPlaybackAudioSession() {
+        #if os(iOS)
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+
+            // Use playback mode for recorded audio playback
+            try audioSession.setCategory(.playback,
+                                       mode: .default,
+                                       options: [.mixWithOthers])
+
+            try audioSession.setActive(true)
+            print("Playback audio session configured")
+        } catch {
+            print("Playback audio session setup failed: \(error)")
+        }
+        #endif
+    }
+
+    private func setupAudioGraph() {
+        // Don't connect anything yet - we'll do it in startProcessing when format is available
+    }
+
+    private func setupEQ() {
+        // Configure USER EQ (bass/mid/treble tone controls)
+        let userBands = userEqUnit.bands
+
+        // Bass (low shelf at 80Hz) - slightly lower for more bass response
+        userBands[0].filterType = .lowShelf
+        userBands[0].frequency = 80
+        userBands[0].gain = 0
+        userBands[0].bypass = false
+
+        // Mid (parametric at 1kHz) - narrower Q for more focused control
+        userBands[1].filterType = .parametric
+        userBands[1].frequency = 1000
+        userBands[1].bandwidth = 0.71  // Q ≈ 1.4 (narrower, more focused)
+        userBands[1].gain = 0
+        userBands[1].bypass = false
+
+        // Treble (high shelf at 10kHz) - higher for more air/sparkle
+        userBands[2].filterType = .highShelf
+        userBands[2].frequency = 10000
+        userBands[2].gain = 0
+        userBands[2].bypass = false
+
+        // Configure FORMANT EQ (for voice processing - formant shift & vocal tract)
+        let formantBands = eqUnit.bands
+
+        // These will be dynamically adjusted by formant shift and vocal tract length
+        // Initial setup with neutral frequencies
+        formantBands[0].filterType = .lowShelf
+        formantBands[0].frequency = 100
+        formantBands[0].gain = 0
+        formantBands[0].bypass = false
+
+        formantBands[1].filterType = .parametric
+        formantBands[1].frequency = 1000
+        formantBands[1].bandwidth = 1.0
+        formantBands[1].gain = 0
+        formantBands[1].bypass = false
+
+        formantBands[2].filterType = .highShelf
+        formantBands[2].frequency = 8000
+        formantBands[2].gain = 0
+        formantBands[2].bypass = false
+    }
+
+    private func setupReverb() {
+        reverbUnit.loadFactoryPreset(.cathedral)
+        reverbUnit.wetDryMix = 0.0 // Start with no reverb
+    }
+
+
+
+    private func processInputBuffer(_ buffer: AVAudioPCMBuffer) {
+        guard let channelData = buffer.floatChannelData?[0] else { return }
+        let frameCount = Int(buffer.frameLength)
+
+        // Calculate RMS level
+        var rms: Float = 0
+        vDSP_rmsqv(channelData, 1, &rms, vDSP_Length(frameCount))
+
+        DispatchQueue.main.async {
+            self.inputLevel = rms
+        }
+    }
+
+    private func processOutputBuffer(_ buffer: AVAudioPCMBuffer) {
+        guard let channelData = buffer.floatChannelData?[0] else { return }
+        let frameCount = Int(buffer.frameLength)
+
+        // Calculate RMS level
+        var rms: Float = 0
+        vDSP_rmsqv(channelData, 1, &rms, vDSP_Length(frameCount))
+
+        // Copy data for waveform visualization
+        let waveform = Array(UnsafeBufferPointer(start: channelData, count: min(frameCount, 512)))
+
+        // Perform FFT for spectrum analysis
+        let spectrum = performFFT(on: channelData, frameCount: frameCount)
+
+        DispatchQueue.main.async {
+            self.outputLevel = rms
+            self.waveformData = waveform
+            self.spectrumData = spectrum
+        }
+    }
+
+    private func performFFT(on data: UnsafePointer<Float>, frameCount: Int) -> [Float] {
+        // Use optimized FFT processor instead of recreating setup each time
+        let samples = Array(UnsafeBufferPointer(start: data, count: frameCount))
+        return fftProcessor.processSpectrumWithBins(from: samples, binCount: 256)
+    }
+    
+
+    func startProcessing() {
+        processingState = .starting
+
+        do {
+            try setupIfNeeded()
+            print("Starting audio engine...")
+
+            // Back to minimal - NO EFFECTS AT ALL
+            // ALL audio units fail with -10868, so use direct passthrough
+            // audioEngine.attach(pitchUnit)
+            // audioEngine.attach(userEqUnit)
+            // audioEngine.attach(eqUnit)
+            // audioEngine.attach(reverbUnit)
+            // audioEngine.attach(distortionUnit)
+            audioEngine.attach(mixerNode)
+
+            // Voice processing setup - DISABLED for now
+            // Voice processing causes 16kHz sample rate which AVAudioUnitTimePitch doesn't support
+            // We need higher sample rate for pitch shifting to work
+            #if targetEnvironment(simulator)
+            print("⚠️ Voice processing not available on simulator")
+            #else
+            // Disable voice processing to get 48kHz sample rate
+            if inputNode.isVoiceProcessingEnabled == true {
+                do {
+                    try inputNode.setVoiceProcessingEnabled(false)
+                    print("🎧 Voice processing disabled (needed for pitch shifting - use headphones!)")
+                } catch {
+                    print("⚠️ Failed to disable voice processing: \(error)")
+                }
+            }
+            #endif
+
+            // NOW get the ACTUAL hardware format AFTER voice processing is enabled
+            // This is critical - voice processing changes the format!
+            let hardwareFormat = inputNode.outputFormat(forBus: 0)
+            print("📊 Hardware format: \(hardwareFormat)")
+            print("   Sample rate: \(hardwareFormat.sampleRate) Hz")
+            print("   Channel count: \(hardwareFormat.channelCount)")
+
+            // Validate format
+            guard hardwareFormat.sampleRate > 0 && hardwareFormat.channelCount > 0 else {
+                print("❌ Invalid audio format - may need to run on physical device")
+                return
+            }
+
+            // Direct passthrough - NO EFFECTS
+            // Input -> Mixer -> Output
+            audioEngine.connect(inputNode, to: mixerNode, format: nil)
+            audioEngine.connect(mixerNode, to: outputNode, format: nil)
+
+            print("✅ Audio graph connected with \(hardwareFormat.sampleRate) Hz")
+
+            // Don't call prepare() - let the engine handle it automatically
+            // Calling prepare() before start() can cause format conversion issues
+
+            // Install tap on input node BEFORE starting the engine
+            // Ultra-low latency mode: small buffers for near-zero delay
+            let tapBufferSize: AVAudioFrameCount = 1024 // 1024 @ 48kHz = ~21ms (ultra-low latency)
+
+            // IMPORTANT: Use nil format to let the tap use the node's native format
+            // Input tap is ONLY for monitoring - audio flows directly through the graph
+            inputNode.installTap(onBus: 0, bufferSize: tapBufferSize, format: nil) { [weak self] (buffer: AVAudioPCMBuffer, time: AVAudioTime) in
+                guard let self = self else { return }
+
+                // Only monitor input levels - no buffer copying or scheduling needed
+                // Audio flows directly: Input -> Effects Chain -> Output
+                self.processInputBuffer(buffer)
+            }
+
+            // Install tap on mixer for output monitoring and recording
+            // Use same buffer size as input for consistency
+            // Use nil format to avoid sample rate mismatch
+            mixerNode.installTap(onBus: 0, bufferSize: tapBufferSize, format: nil) { [weak self] (buffer: AVAudioPCMBuffer, time: AVAudioTime) in
+                self?.processOutputBuffer(buffer)
+
+                // Write to recording file if recording
+                if let self = self, self.isRecording {
+                    try? self.audioRecorder?.writeBuffer(buffer)
+                }
+            }
+
+            // Start the engine AFTER all taps are installed
+            try audioEngine.start()
+
+            processingState = .processing
+            isProcessing = true
+            startLevelMonitoring()
+            print("✅ Audio processing started successfully")
+        } catch {
+            print("❌ Failed to start audio engine: \(error)")
+            print("❌ Error details: \(error.localizedDescription)")
+            print("❌ Error code: \((error as NSError).code)")
+            print("❌ Error domain: \((error as NSError).domain)")
+
+            #if targetEnvironment(simulator)
+            print("⚠️  SIMULATOR LIMITATION: Voice processing and complex audio graphs may not work in the simulator.")
+            print("📱 Please test this app on a physical iOS device for full functionality.")
+            #endif
+
+            // Clean up taps if they were installed
+            inputNode.removeTap(onBus: 0)
+            mixerNode.removeTap(onBus: 0)
+
+            // Disconnect and detach nodes (only if they were attached)
+            // audioEngine.disconnectNodeInput(pitchUnit)
+            // audioEngine.disconnectNodeInput(userEqUnit)
+            // audioEngine.disconnectNodeInput(eqUnit)
+            // audioEngine.disconnectNodeInput(distortionUnit)
+            // audioEngine.disconnectNodeInput(reverbUnit)
+            audioEngine.disconnectNodeInput(mixerNode)
+
+            // audioEngine.detach(pitchUnit)
+            // audioEngine.detach(userEqUnit)
+            // audioEngine.detach(eqUnit)
+            // audioEngine.detach(reverbUnit)
+            // audioEngine.detach(distortionUnit)
+            audioEngine.detach(mixerNode)
+
+            let audioError = AudioEngineError.engineStartFailed(underlying: error)
+            processingState = .error(audioError)
+            lastError = audioError
+            isProcessing = false
+            isSetup = false
+
+            print("❌ ProcessingState: \(processingState.description)")
+        }
+    }
+
+    func stopProcessing() {
+        guard isProcessing else { return }
+
+        // Stop the engine first
+        audioEngine.stop()
+
+        // Remove taps safely after stopping
+        if inputNode.engine != nil {
+            inputNode.removeTap(onBus: 0)
+        }
+        if mixerNode.engine != nil {
+            mixerNode.removeTap(onBus: 0)
+        }
+
+        // Disconnect all nodes
+        // audioEngine.disconnectNodeInput(pitchUnit)
+        // audioEngine.disconnectNodeInput(userEqUnit)
+        // audioEngine.disconnectNodeInput(eqUnit)
+        // audioEngine.disconnectNodeInput(distortionUnit)
+        // audioEngine.disconnectNodeInput(reverbUnit)
+        audioEngine.disconnectNodeInput(mixerNode)
+
+        // Detach custom nodes (keep input/output)
+        // audioEngine.detach(pitchUnit)
+        // audioEngine.detach(userEqUnit)
+        // audioEngine.detach(eqUnit)
+        // audioEngine.detach(reverbUnit)
+        // audioEngine.detach(distortionUnit)
+        audioEngine.detach(mixerNode)
+
+        isProcessing = false
+        stopLevelMonitoring()
+        
+        // Reset setup flag so we can start fresh next time
+        isSetup = false
+        
+        print("Voice changer processing stopped")
+    }
+
+    private func startLevelMonitoring() {
+        levelTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            // Level updates are handled in the audio taps
+        }
+    }
+
+    private func stopLevelMonitoring() {
+        levelTimer?.invalidate()
+        levelTimer = nil
+    }
+
+    // MARK: - Parameter Updates
+
+    private func updatePitchShift() {
+        pitchUnit.pitch = pitchShift * 100 // Convert semitones to cents
+    }
+
+    private func updateFormantShift() {
+        // Formant shifting is simulated using EQ adjustments on the FORMANT EQ unit
+        // This now operates independently from user's mid gain control
+        let adjustment = (formantShift - 1.0) * 6.0 // ±6dB adjustment
+        eqUnit.bands[1].gain = adjustment
+    }
+
+    private func updateTimeStretch() {
+        pitchUnit.rate = timeStretch
+    }
+
+    private func updateVocalTractLength() {
+        // Vocal tract length affects all formant frequencies
+        // Adjust EQ frequencies based on tract length
+        let freqMultiplier = 1.0 / vocalTractLength
+        eqUnit.bands[0].frequency = 100 * freqMultiplier
+        eqUnit.bands[1].frequency = 1000 * freqMultiplier
+        eqUnit.bands[2].frequency = 8000 * freqMultiplier
+    }
+
+    private func updateNoiseReduction() {
+        // Noise reduction implemented as a simple gate
+        // In a real implementation, you'd use more sophisticated algorithms
+        _ = -50.0 + (noiseReduction * 40.0) // -50dB to -10dB threshold calculation
+        // This would require a custom audio unit for proper implementation
+    }
+
+    private func updateMasterVolume() {
+        // Adaptive volume control based on headphone status
+        // Speaker: Limit volume to prevent feedback
+        // Headphones: Allow full volume range
+        let maxVolume: Float = isHeadphonesConnected ? masterVolume : min(masterVolume, 1.5)
+
+        mixerNode.outputVolume = maxVolume
+
+        // Also boost player node volume (conservative for speakers)
+        playerNode.volume = isHeadphonesConnected ? 1.5 : 1.0
+
+        if !isHeadphonesConnected && masterVolume > 1.5 {
+            print("⚠️ Volume limited to prevent feedback (use headphones for full range)")
+        }
+    }
+
+    private func updateEQ() {
+        // Update USER EQ unit (not formant EQ)
+        userEqUnit.bands[0].gain = bassGain
+        userEqUnit.bands[1].gain = midGain
+        userEqUnit.bands[2].gain = trebleGain
+    }
+
+    private func updateReverb() {
+        reverbUnit.wetDryMix = reverbAmount * 100
+    }
+
+    private func updateBitDepth() {
+        // Bit depth crushing would require a custom audio unit
+        // This is a placeholder for the effect
+        distortionUnit.wetDryMix = (16.0 - bitDepth) / 16.0 * 100
+    }
+
+    func resetToFactory() {
+        pitchShift = 0.0
+        formantShift = 1.0
+        timeStretch = 1.0
+        vocalTractLength = 1.0
+        noiseReduction = 0.0
+        masterVolume = 2.5
+        bassGain = 0.0
+        midGain = 0.0
+        trebleGain = 0.0
+        reverbAmount = 0.0
+        bitDepth = 16.0
+    }
+
+    func getLatency() -> TimeInterval {
+        return audioEngine.outputNode.presentationLatency +
+               audioEngine.inputNode.presentationLatency
+    }
+
+    // MARK: - Recording Functions
+
+    func startRecording() {
+        guard isProcessing, !isRecording else { return }
+
+        do {
+            // Get the current audio format from the mixer
+            let format = mixerNode.outputFormat(forBus: 0)
+
+            // Start the recorder
+            recordingFile = try audioRecorder?.startRecording(format: format)
+            isRecording = true
+
+            print("Recording started")
+        } catch {
+            print("Failed to start recording: \(error)")
+        }
+    }
+
+    func stopRecording() -> URL? {
+        guard isRecording else { return nil }
+
+        isRecording = false
+        let url = audioRecorder?.stopRecording()
+
+        print("Recording stopped: \(url?.lastPathComponent ?? "unknown")")
+        return url
+    }
+
+    func cancelRecording() {
+        guard isRecording else { return }
+
+        isRecording = false
+        audioRecorder?.cancelRecording()
+
+        print("Recording cancelled")
+    }
+
+    func getRecordingDuration() -> TimeInterval {
+        return audioRecorder?.recordingDuration ?? 0
+    }
+
+    // MARK: - Playback Functions
+
+    func startPlayback(url: URL) {
+        guard !isPlayingBack else { return }
+
+        do {
+            // Stop live processing if active
+            let wasProcessing = isProcessing
+            if wasProcessing {
+                stopProcessing()
+            }
+
+            // Setup audio session for playback only (no recording)
+            setupPlaybackAudioSession()
+
+            // Load the audio file
+            playbackFile = try AVAudioFile(forReading: url)
+            guard let file = playbackFile else { return }
+
+            let format = file.processingFormat
+
+            // Create and attach playback player node
+            playbackPlayerNode = AVAudioPlayerNode()
+            guard let player = playbackPlayerNode else { return }
+
+            audioEngine.attach(player)
+
+            // Attach effects nodes
+            audioEngine.attach(pitchUnit)
+            audioEngine.attach(userEqUnit)  // User tone controls
+            audioEngine.attach(eqUnit)      // Formant processing
+            audioEngine.attach(reverbUnit)
+            audioEngine.attach(distortionUnit)
+            audioEngine.attach(mixerNode)
+
+            // Connect playback chain with effects
+            // Player -> Pitch -> User EQ -> Formant EQ -> Distortion -> Reverb -> Mixer -> Output
+            audioEngine.connect(player, to: pitchUnit, format: format)
+            audioEngine.connect(pitchUnit, to: userEqUnit, format: format)
+            audioEngine.connect(userEqUnit, to: eqUnit, format: format)
+            audioEngine.connect(eqUnit, to: distortionUnit, format: format)
+            audioEngine.connect(distortionUnit, to: reverbUnit, format: format)
+            audioEngine.connect(reverbUnit, to: mixerNode, format: format)
+            audioEngine.connect(mixerNode, to: outputNode, format: format)
+
+            // Prepare and start the engine
+            audioEngine.prepare()
+            try audioEngine.start()
+
+            // Schedule the file for playback
+            player.scheduleFile(file, at: nil) { [weak self] in
+                DispatchQueue.main.async {
+                    self?.stopPlayback()
+                }
+            }
+
+            // Start playback
+            player.play()
+            isPlayingBack = true
+
+            // Monitor playback progress
+            startPlaybackProgressMonitoring(duration: Double(file.length) / file.fileFormat.sampleRate)
+
+            print("Playback started: \(url.lastPathComponent)")
+        } catch {
+            print("Failed to start playback: \(error)")
+        }
+    }
+
+    func stopPlayback() {
+        guard isPlayingBack else { return }
+
+        playbackPlayerNode?.stop()
+        audioEngine.stop()
+
+        // Disconnect and detach nodes
+        if let player = playbackPlayerNode {
+            audioEngine.disconnectNodeInput(player)
+            audioEngine.detach(player)
+        }
+
+        audioEngine.disconnectNodeInput(pitchUnit)
+        audioEngine.disconnectNodeInput(userEqUnit)
+        audioEngine.disconnectNodeInput(eqUnit)
+        audioEngine.disconnectNodeInput(distortionUnit)
+        audioEngine.disconnectNodeInput(reverbUnit)
+        audioEngine.disconnectNodeInput(mixerNode)
+
+        audioEngine.detach(pitchUnit)
+        audioEngine.detach(userEqUnit)
+        audioEngine.detach(eqUnit)
+        audioEngine.detach(reverbUnit)
+        audioEngine.detach(distortionUnit)
+        audioEngine.detach(mixerNode)
+
+        playbackPlayerNode = nil
+        playbackFile = nil
+        isPlayingBack = false
+        playbackProgress = 0.0
+        isSetup = false
+
+        // Stop progress monitoring
+        levelTimer?.invalidate()
+        levelTimer = nil
+
+        print("Playback stopped")
+    }
+
+    private func startPlaybackProgressMonitoring(duration: Double) {
+        levelTimer?.invalidate()
+
+        var elapsed: Double = 0
+        levelTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            guard let self = self, self.isPlayingBack else { return }
+
+            elapsed += 0.1
+            self.playbackProgress = min(elapsed / duration, 1.0)
+
+            if elapsed >= duration {
+                self.levelTimer?.invalidate()
+            }
+        }
+    }
+}
+
+// MARK: - Circular Buffer for Advanced Processing
+
+class CircularBuffer {
+    private var buffer: [Float]
+    private var writeIndex: Int = 0
+    private var readIndex: Int = 0
+    private let size: Int
+
+    init(size: Int) {
+        self.size = size
+        self.buffer = [Float](repeating: 0.0, count: size)
+        self.readIndex = size / 4 // Start read ahead of write
+    }
+
+    func write(_ sample: Float) {
+        buffer[writeIndex] = sample
+        writeIndex = (writeIndex + 1) % size
+    }
+
+    func read(at offset: Float) -> Float {
+        let index = (Float(readIndex) + offset).truncatingRemainder(dividingBy: Float(size))
+        let intIndex = Int(index)
+        let fraction = index - Float(intIndex)
+
+        let sample1 = buffer[intIndex]
+        let sample2 = buffer[(intIndex + 1) % size]
+
+        return sample1 * (1.0 - fraction) + sample2 * fraction
+    }
+
+    func advance() {
+        readIndex = (readIndex + 1) % size
+    }
+}
