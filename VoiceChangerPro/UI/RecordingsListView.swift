@@ -71,6 +71,9 @@ struct RecordingsListView: View {
                     ShareSheet(items: [url])
                 }
             }
+            .onAppear {
+                recordingManager.loadRecordings()
+            }
         }
     }
 }

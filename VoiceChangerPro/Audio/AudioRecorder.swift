@@ -12,30 +12,26 @@ class AudioRecorder: ObservableObject {
     var currentRecordingURL: URL?
 
     func startRecording(format: AVAudioFormat) throws -> AVAudioFile {
-        print("🎙️ AudioRecorder: Starting recording...")
-        print("   Input format: \(format)")
-        print("   Sample rate: \(format.sampleRate), Channels: \(format.channelCount)")
-        
-        // Create a unique filename with timestamp
+        NSLog("VCP-REC AudioRecorder.startRecording rate=\(format.sampleRate) ch=\(format.channelCount) interleaved=\(format.isInterleaved)")
+
         let timestamp = Date().timeIntervalSince1970
-        let filename = "VoiceChanger_\(Int(timestamp)).caf"  // Use CAF for better compatibility
+        let filename = "VoiceChanger_\(Int(timestamp)).caf"
 
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let audioURL = documentsPath.appendingPathComponent(filename)
-
         currentRecordingURL = audioURL
-        
-        print("   Recording to: \(audioURL.lastPathComponent)")
 
-        // CRITICAL FIX: Use the format directly instead of settings dictionary
-        // This ensures format compatibility with the audio engine
+        // AVAudioFile on disk is always interleaved — strip the deinterleaved
+        // flag coming from mixerNode.outputFormat to silence the Core Audio
+        // coercion warning.
+        var settings = format.settings
+        settings[AVLinearPCMIsNonInterleaved] = false
+
         do {
-            // Create the audio file using the exact format from the engine
-            audioFile = try AVAudioFile(forWriting: audioURL, settings: format.settings)
-            
-            print("   ✅ Audio file created successfully")
+            audioFile = try AVAudioFile(forWriting: audioURL, settings: settings)
+            NSLog("VCP-REC AudioRecorder file created: \(audioURL.lastPathComponent)")
         } catch {
-            print("   ❌ Failed to create audio file: \(error)")
+            NSLog("VCP-REC AudioRecorder file-create FAILED: \(error.localizedDescription)")
             throw error
         }
 

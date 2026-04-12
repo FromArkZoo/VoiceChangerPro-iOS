@@ -13,6 +13,10 @@
 		8B8B55E42EAD2EB900E5F864 /* ISCONNECTTOCONVERTER_FIX.md in Resources */ = {isa = PBXBuildFile; fileRef = 8B8B55E32EAD2EB900E5F864 /* ISCONNECTTOCONVERTER_FIX.md */; };
 		8B8B55E62EAD2F3500E5F864 /* FINAL_FIX_SOLUTION.md in Resources */ = {isa = PBXBuildFile; fileRef = 8B8B55E52EAD2F3500E5F864 /* FINAL_FIX_SOLUTION.md */; };
 		8BE2D3492EA3BFF5003E8361 /* OptimizedFFTProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BE2D3482EA3BFF5003E8361 /* OptimizedFFTProcessor.swift */; };
+		8BE2D34B2EA3BFF5003E8361 /* AudioRingBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BE2D34A2EA3BFF5003E8361 /* AudioRingBuffer.swift */; };
+		8BE2D34D2EA3BFF5003E8361 /* DSPChain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BE2D34C2EA3BFF5003E8361 /* DSPChain.swift */; };
+		8BE2D34F2EA3BFF5003E8361 /* BiquadFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BE2D34E2EA3BFF5003E8361 /* BiquadFilter.swift */; };
+		8BE2D3532EA3BFF5003E8361 /* SchroederReverb.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BE2D3522EA3BFF5003E8361 /* SchroederReverb.swift */; };
 		A01 /* VoiceChangerProApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51 /* VoiceChangerProApp.swift */; };
 		A02 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A52 /* ContentView.swift */; };
 		A03 /* AudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A53 /* AudioEngine.swift */; };
@@ -25,6 +29,29 @@
 		A15 /* AudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A61 /* AudioRecorder.swift */; };
 		A16 /* RecordingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A62 /* RecordingManager.swift */; };
 		A17 /* RecordingsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A63 /* RecordingsListView.swift */; };
+		BBBF006C42D569C51D1827 /* RubberBandStretcher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP000DAC17E1AF7A6CEE /* RubberBandStretcher.cpp */; };
+		BBBF00397658C618B3B9B2 /* Allocators.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP0010406447006F50DA /* Allocators.cpp */; };
+		BBBF002BCC637E2111D52C /* BQResampler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP004D7FC35E597556F8 /* BQResampler.cpp */; };
+		BBBF007DDCF1ADB1C52EBF /* FFT.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP003A7DAC5A341985C3 /* FFT.cpp */; };
+		BBBF0025F61B5C4183C8A0 /* Log.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP003CA42068B89A3732 /* Log.cpp */; };
+		BBBF00514F89AE450A5D65 /* mathmisc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP0079A105CADAD45607 /* mathmisc.cpp */; };
+		BBBF007040551573A58DF1 /* Profiler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP006503464F580A2229 /* Profiler.cpp */; };
+		BBBF0061ECA42004918CA8 /* Resampler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP00055B41E2707CAD30 /* Resampler.cpp */; };
+		BBBF00067937BF6722761D /* StretchCalculator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP005BE1137B00B8245D /* StretchCalculator.cpp */; };
+		BBBF005B447A4A7567D387 /* sysutils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP0049065A9AD29E72FE /* sysutils.cpp */; };
+		BBBF0075A9E9D763FD0F5C /* Thread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP00430B204642EB7D68 /* Thread.cpp */; };
+		BBBF005659BBAB6185129A /* VectorOpsComplex.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP000F1B9BFDA04C06CE /* VectorOpsComplex.cpp */; };
+		BBBF00024B97E97340D5B9 /* AudioCurveCalculator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP001CA39B6E5464E723 /* AudioCurveCalculator.cpp */; };
+		BBBF0028BDE76D6D048B17 /* CompoundAudioCurve.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP005C9D7E9F3D33977D /* CompoundAudioCurve.cpp */; };
+		BBBF000E7F137FCC6BCF1B /* HighFrequencyAudioCurve.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP0067FA3E55348620A0 /* HighFrequencyAudioCurve.cpp */; };
+		BBBF00104204CBD3797702 /* PercussiveAudioCurve.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP004D697B111283F884 /* PercussiveAudioCurve.cpp */; };
+		BBBF00099EEEE5534280D1 /* R2Stretcher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP007BE9341345B63AE8 /* R2Stretcher.cpp */; };
+		BBBF00075D8CFD7538130D /* SilentAudioCurve.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP006120F440A23BCFFD /* SilentAudioCurve.cpp */; };
+		BBBF006CE7717747321E94 /* StretcherChannelData.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP006D41FE02A2D59AFD /* StretcherChannelData.cpp */; };
+		BBBF005A257EF2904A63CD /* StretcherProcess.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP00195F14BF68038826 /* StretcherProcess.cpp */; };
+		BBBF004462BE23AA7D36B1 /* R3Stretcher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP003E97288CBB69B9E0 /* R3Stretcher.cpp */; };
+		VCBRBF000000000000000002 /* RubberBandBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = VCBR000000000000000002 /* RubberBandBridge.mm */; };
+		VCBRBF000000000000000003 /* RubberBandPitchShifter.swift in Sources */ = {isa = PBXBuildFile; fileRef = VCBR000000000000000003 /* RubberBandPitchShifter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -34,6 +61,10 @@
 		8B8B55E32EAD2EB900E5F864 /* ISCONNECTTOCONVERTER_FIX.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ISCONNECTTOCONVERTER_FIX.md; sourceTree = "<group>"; };
 		8B8B55E52EAD2F3500E5F864 /* FINAL_FIX_SOLUTION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = FINAL_FIX_SOLUTION.md; sourceTree = "<group>"; };
 		8BE2D3482EA3BFF5003E8361 /* OptimizedFFTProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptimizedFFTProcessor.swift; sourceTree = "<group>"; };
+		8BE2D34A2EA3BFF5003E8361 /* AudioRingBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRingBuffer.swift; sourceTree = "<group>"; };
+		8BE2D34C2EA3BFF5003E8361 /* DSPChain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DSPChain.swift; sourceTree = "<group>"; };
+		8BE2D34E2EA3BFF5003E8361 /* BiquadFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiquadFilter.swift; sourceTree = "<group>"; };
+		8BE2D3522EA3BFF5003E8361 /* SchroederReverb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchroederReverb.swift; sourceTree = "<group>"; };
 		A50 /* VoiceChangerPro.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VoiceChangerPro.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A51 /* VoiceChangerProApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceChangerProApp.swift; sourceTree = "<group>"; };
 		A52 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -48,6 +79,31 @@
 		A61 /* AudioRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecorder.swift; sourceTree = "<group>"; };
 		A62 /* RecordingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingManager.swift; sourceTree = "<group>"; };
 		A63 /* RecordingsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingsListView.swift; sourceTree = "<group>"; };
+		BBCPP000DAC17E1AF7A6CEE /* RubberBandStretcher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = RubberBandStretcher.cpp; sourceTree = "<group>"; };
+		BBCPP0010406447006F50DA /* Allocators.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Allocators.cpp; sourceTree = "<group>"; };
+		BBCPP004D7FC35E597556F8 /* BQResampler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = BQResampler.cpp; sourceTree = "<group>"; };
+		BBCPP003A7DAC5A341985C3 /* FFT.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = FFT.cpp; sourceTree = "<group>"; };
+		BBCPP003CA42068B89A3732 /* Log.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Log.cpp; sourceTree = "<group>"; };
+		BBCPP0079A105CADAD45607 /* mathmisc.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = mathmisc.cpp; sourceTree = "<group>"; };
+		BBCPP006503464F580A2229 /* Profiler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Profiler.cpp; sourceTree = "<group>"; };
+		BBCPP00055B41E2707CAD30 /* Resampler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Resampler.cpp; sourceTree = "<group>"; };
+		BBCPP005BE1137B00B8245D /* StretchCalculator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = StretchCalculator.cpp; sourceTree = "<group>"; };
+		BBCPP0049065A9AD29E72FE /* sysutils.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = sysutils.cpp; sourceTree = "<group>"; };
+		BBCPP00430B204642EB7D68 /* Thread.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Thread.cpp; sourceTree = "<group>"; };
+		BBCPP000F1B9BFDA04C06CE /* VectorOpsComplex.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = VectorOpsComplex.cpp; sourceTree = "<group>"; };
+		BBCPP001CA39B6E5464E723 /* AudioCurveCalculator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AudioCurveCalculator.cpp; sourceTree = "<group>"; };
+		BBCPP005C9D7E9F3D33977D /* CompoundAudioCurve.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CompoundAudioCurve.cpp; sourceTree = "<group>"; };
+		BBCPP0067FA3E55348620A0 /* HighFrequencyAudioCurve.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = HighFrequencyAudioCurve.cpp; sourceTree = "<group>"; };
+		BBCPP004D697B111283F884 /* PercussiveAudioCurve.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PercussiveAudioCurve.cpp; sourceTree = "<group>"; };
+		BBCPP007BE9341345B63AE8 /* R2Stretcher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = R2Stretcher.cpp; sourceTree = "<group>"; };
+		BBCPP006120F440A23BCFFD /* SilentAudioCurve.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SilentAudioCurve.cpp; sourceTree = "<group>"; };
+		BBCPP006D41FE02A2D59AFD /* StretcherChannelData.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = StretcherChannelData.cpp; sourceTree = "<group>"; };
+		BBCPP00195F14BF68038826 /* StretcherProcess.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = StretcherProcess.cpp; sourceTree = "<group>"; };
+		BBCPP003E97288CBB69B9E0 /* R3Stretcher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = R3Stretcher.cpp; sourceTree = "<group>"; };
+		VCBR000000000000000001 /* RubberBandBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RubberBandBridge.h; sourceTree = "<group>"; };
+		VCBR000000000000000002 /* RubberBandBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = RubberBandBridge.mm; sourceTree = "<group>"; };
+		VCBR000000000000000003 /* RubberBandPitchShifter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RubberBandPitchShifter.swift; sourceTree = "<group>"; };
+		VCBR000000000000000004 /* VoiceChangerPro-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "VoiceChangerPro-Bridging-Header.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,6 +121,13 @@
 			isa = PBXGroup;
 			children = (
 				8BE2D3482EA3BFF5003E8361 /* OptimizedFFTProcessor.swift */,
+				8BE2D34A2EA3BFF5003E8361 /* AudioRingBuffer.swift */,
+				8BE2D34C2EA3BFF5003E8361 /* DSPChain.swift */,
+				8BE2D34E2EA3BFF5003E8361 /* BiquadFilter.swift */,
+				8BE2D3522EA3BFF5003E8361 /* SchroederReverb.swift */,
+				VCBR000000000000000001 /* RubberBandBridge.h */,
+				VCBR000000000000000002 /* RubberBandBridge.mm */,
+				VCBR000000000000000003 /* RubberBandPitchShifter.swift */,
 			);
 			path = Processing;
 			sourceTree = "<group>";
@@ -87,7 +150,9 @@
 				A25 /* Models */,
 				A58 /* Assets.xcassets */,
 				A60 /* Info.plist */,
-				A26 /* Preview Content */,
+				A26 /* Preview Content */,				BBGRP000000000000000006 /* ThirdParty */,
+				VCBR000000000000000004 /* VoiceChangerPro-Bridging-Header.h */,
+
 			);
 			path = VoiceChangerPro;
 			sourceTree = "<group>";
@@ -141,6 +206,74 @@
 				A59 /* Preview Assets.xcassets */,
 			);
 			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		BBGRP000000000000000001 /* common */ = {
+			isa = PBXGroup;
+			children = (
+				BBCPP0010406447006F50DA /* Allocators.cpp */,
+				BBCPP004D7FC35E597556F8 /* BQResampler.cpp */,
+				BBCPP003A7DAC5A341985C3 /* FFT.cpp */,
+				BBCPP003CA42068B89A3732 /* Log.cpp */,
+				BBCPP0079A105CADAD45607 /* mathmisc.cpp */,
+				BBCPP006503464F580A2229 /* Profiler.cpp */,
+				BBCPP00055B41E2707CAD30 /* Resampler.cpp */,
+				BBCPP005BE1137B00B8245D /* StretchCalculator.cpp */,
+				BBCPP0049065A9AD29E72FE /* sysutils.cpp */,
+				BBCPP00430B204642EB7D68 /* Thread.cpp */,
+				BBCPP000F1B9BFDA04C06CE /* VectorOpsComplex.cpp */,
+			);
+			path = common;
+			sourceTree = "<group>";
+		};
+		BBGRP000000000000000002 /* faster */ = {
+			isa = PBXGroup;
+			children = (
+				BBCPP001CA39B6E5464E723 /* AudioCurveCalculator.cpp */,
+				BBCPP005C9D7E9F3D33977D /* CompoundAudioCurve.cpp */,
+				BBCPP0067FA3E55348620A0 /* HighFrequencyAudioCurve.cpp */,
+				BBCPP004D697B111283F884 /* PercussiveAudioCurve.cpp */,
+				BBCPP007BE9341345B63AE8 /* R2Stretcher.cpp */,
+				BBCPP006120F440A23BCFFD /* SilentAudioCurve.cpp */,
+				BBCPP006D41FE02A2D59AFD /* StretcherChannelData.cpp */,
+				BBCPP00195F14BF68038826 /* StretcherProcess.cpp */,
+			);
+			path = faster;
+			sourceTree = "<group>";
+		};
+		BBGRP000000000000000003 /* finer */ = {
+			isa = PBXGroup;
+			children = (
+				BBCPP003E97288CBB69B9E0 /* R3Stretcher.cpp */,
+			);
+			path = finer;
+			sourceTree = "<group>";
+		};
+		BBGRP000000000000000004 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				BBCPP000DAC17E1AF7A6CEE /* RubberBandStretcher.cpp */,
+				BBGRP000000000000000001 /* common */,
+				BBGRP000000000000000002 /* faster */,
+				BBGRP000000000000000003 /* finer */,
+			);
+			path = src;
+			sourceTree = "<group>";
+		};
+		BBGRP000000000000000005 /* rubberband */ = {
+			isa = PBXGroup;
+			children = (
+				BBGRP000000000000000004 /* src */,
+			);
+			path = rubberband;
+			sourceTree = "<group>";
+		};
+		BBGRP000000000000000006 /* ThirdParty */ = {
+			isa = PBXGroup;
+			children = (
+				BBGRP000000000000000005 /* rubberband */,
+			);
+			path = ThirdParty;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -229,6 +362,33 @@
 				A16 /* RecordingManager.swift in Sources */,
 				A17 /* RecordingsListView.swift in Sources */,
 				8BE2D3492EA3BFF5003E8361 /* OptimizedFFTProcessor.swift in Sources */,
+				8BE2D34B2EA3BFF5003E8361 /* AudioRingBuffer.swift in Sources */,
+				8BE2D34D2EA3BFF5003E8361 /* DSPChain.swift in Sources */,
+				8BE2D34F2EA3BFF5003E8361 /* BiquadFilter.swift in Sources */,
+				8BE2D3532EA3BFF5003E8361 /* SchroederReverb.swift in Sources */,
+				BBBF006C42D569C51D1827 /* RubberBandStretcher.cpp in Sources */,
+				BBBF00397658C618B3B9B2 /* Allocators.cpp in Sources */,
+				BBBF002BCC637E2111D52C /* BQResampler.cpp in Sources */,
+				BBBF007DDCF1ADB1C52EBF /* FFT.cpp in Sources */,
+				BBBF0025F61B5C4183C8A0 /* Log.cpp in Sources */,
+				BBBF00514F89AE450A5D65 /* mathmisc.cpp in Sources */,
+				BBBF007040551573A58DF1 /* Profiler.cpp in Sources */,
+				BBBF0061ECA42004918CA8 /* Resampler.cpp in Sources */,
+				BBBF00067937BF6722761D /* StretchCalculator.cpp in Sources */,
+				BBBF005B447A4A7567D387 /* sysutils.cpp in Sources */,
+				BBBF0075A9E9D763FD0F5C /* Thread.cpp in Sources */,
+				BBBF005659BBAB6185129A /* VectorOpsComplex.cpp in Sources */,
+				BBBF00024B97E97340D5B9 /* AudioCurveCalculator.cpp in Sources */,
+				BBBF0028BDE76D6D048B17 /* CompoundAudioCurve.cpp in Sources */,
+				BBBF000E7F137FCC6BCF1B /* HighFrequencyAudioCurve.cpp in Sources */,
+				BBBF00104204CBD3797702 /* PercussiveAudioCurve.cpp in Sources */,
+				BBBF00099EEEE5534280D1 /* R2Stretcher.cpp in Sources */,
+				BBBF00075D8CFD7538130D /* SilentAudioCurve.cpp in Sources */,
+				BBBF006CE7717747321E94 /* StretcherChannelData.cpp in Sources */,
+				BBBF005A257EF2904A63CD /* StretcherProcess.cpp in Sources */,
+				BBBF004462BE23AA7D36B1 /* R3Stretcher.cpp in Sources */,
+				VCBRBF000000000000000002 /* RubberBandBridge.mm in Sources */,
+				VCBRBF000000000000000003 /* RubberBandPitchShifter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -364,6 +524,27 @@
 				DEVELOPMENT_ASSET_PATHS = "\"VoiceChangerPro/Preview Content\"";
 				DEVELOPMENT_TEAM = 278RL79DB5;
 				ENABLE_PREVIEWS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"HAVE_VDSP=1",
+					"USE_BQRESAMPLER=1",
+					"USE_PTHREADS=1",
+					"NO_THREAD_CHECKS=1",
+					"NO_TIMING=1",
+				);
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/VoiceChangerPro/ThirdParty/rubberband",
+					"$(SRCROOT)/VoiceChangerPro/ThirdParty/rubberband/src",
+				);
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(inherited)",
+					"-Wno-unused-parameter",
+					"-Wno-unused-variable",
+					"-Wno-unused-function",
+					"-Wno-deprecated-declarations",
+				);
+				SWIFT_OBJC_BRIDGING_HEADER = "VoiceChangerPro/VoiceChangerPro-Bridging-Header.h";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = VoiceChangerPro/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "";
@@ -398,6 +579,27 @@
 				DEVELOPMENT_ASSET_PATHS = "\"VoiceChangerPro/Preview Content\"";
 				DEVELOPMENT_TEAM = 278RL79DB5;
 				ENABLE_PREVIEWS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"HAVE_VDSP=1",
+					"USE_BQRESAMPLER=1",
+					"USE_PTHREADS=1",
+					"NO_THREAD_CHECKS=1",
+					"NO_TIMING=1",
+				);
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/VoiceChangerPro/ThirdParty/rubberband",
+					"$(SRCROOT)/VoiceChangerPro/ThirdParty/rubberband/src",
+				);
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(inherited)",
+					"-Wno-unused-parameter",
+					"-Wno-unused-variable",
+					"-Wno-unused-function",
+					"-Wno-deprecated-declarations",
+				);
+				SWIFT_OBJC_BRIDGING_HEADER = "VoiceChangerPro/VoiceChangerPro-Bridging-Header.h";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = VoiceChangerPro/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "";

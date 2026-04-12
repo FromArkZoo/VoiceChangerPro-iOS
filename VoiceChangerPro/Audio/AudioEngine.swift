@@ -68,12 +68,14 @@ class VoiceChangerAudioEngine: ObservableObject {
     private var playerNode: AVAudioPlayerNode
     private var mixerNode: AVAudioMixerNode       // Output mixer
 
-    // Audio units for effects
-    private var pitchUnit: AVAudioUnitTimePitch
-    private var reverbUnit: AVAudioUnitReverb
-    private var userEqUnit: AVAudioUnitEQ  // User tone controls (bass/mid/treble)
-    private var eqUnit: AVAudioUnitEQ      // Formant & vocal tract processing
-    private var distortionUnit: AVAudioUnitDistortion
+    // Custom DSP pipeline (Phase 1B): input tap writes into a ring buffer;
+    // sourceNode's render block pulls from the ring, runs dspChain in-place,
+    // then writes to the output ABL. inputNode is NOT connected to the graph —
+    // only tapped. This avoids AVAudioEngine's format-converter-in-input-chain
+    // assertion that Phase 1 ran into with the built-in effect units.
+    private var sourceNode: AVAudioSourceNode!
+    private var ringBuffer: AudioRingBuffer!
+    private var dspChain: DSPChain!
 
     // Voice processing parameters
     @Published var pitchShift: Float = 0.0 { didSet { updatePitchShift() } }
@@ -132,6 +134,12 @@ class VoiceChangerAudioEngine: ObservableObject {
 
     // CRITICAL: Store the processing format for consistent audio chain
     private var processingFormat: AVAudioFormat?
+    private var recordingFormat: AVAudioFormat?
+
+    /// Called on the main queue after a recording finishes (either via explicit
+    /// stopRecording() or implicitly when stopProcessing() is called mid-record).
+    /// Consumer (ContentView) uses this to register the file with RecordingManager.
+    var onRecordingFinished: ((URL) -> Void)?
 
     // Thread safety
     private let engineLock = NSLock()
@@ -155,26 +163,12 @@ class VoiceChangerAudioEngine: ObservableObject {
         playerNode = AVAudioPlayerNode()
         mixerNode = AVAudioMixerNode()       // Output mixer
 
-        // Initialize audio units
-        pitchUnit = AVAudioUnitTimePitch()
-        reverbUnit = AVAudioUnitReverb()
-        userEqUnit = AVAudioUnitEQ(numberOfBands: 3)  // User tone controls
-        eqUnit = AVAudioUnitEQ(numberOfBands: 3)      // Formant processing
-        distortionUnit = AVAudioUnitDistortion()
-
-        // Configure pitch unit for low latency
-        pitchUnit.pitch = 0.0
-        pitchUnit.rate = 1.0
-        pitchUnit.overlap = 8.0 // Default overlap for balance between quality and latency
-
         // Initialize recorder
         audioRecorder = AudioRecorder()
 
         // Initialize FFT processor
         fftProcessor = OptimizedFFTProcessor(fftLength: 1024)
 
-        setupEQ()
-        setupReverb()
         setupHeadphoneDetection()
     }
     
@@ -391,165 +385,148 @@ class VoiceChangerAudioEngine: ObservableObject {
     }
 
     private func setupAudioGraph() {
-        print("🔄 Setting up audio graph...")
-        
-        // CRITICAL: Stop engine if running before reconfiguring
+        print("🔄 Setting up audio graph (pull pipeline)...")
+
         if audioEngine.isRunning {
-            print("   ⚠️ Stopping running engine before reconfiguration")
             audioEngine.stop()
         }
-        
-        // Reset the engine to clear any previous state
         audioEngine.reset()
-        print("   ✓ Audio engine reset")
-        
-        // IMPORTANT: After reset, we need to get fresh node references
-        // The reset() clears the graph but nodes remain attached
+
         inputNode = audioEngine.inputNode
         outputNode = audioEngine.outputNode
-        print("   ✓ Fresh node references obtained")
-        
-        // Get the input format AFTER reset
+
         let inputFormat = inputNode.inputFormat(forBus: 0)
         print("   Input format: \(inputFormat)")
-        print("   Sample rate: \(inputFormat.sampleRate), Channels: \(inputFormat.channelCount)")
-        
-        // Validate input format
+
         guard inputFormat.sampleRate > 0 && inputFormat.channelCount > 0 else {
-            print("❌ Invalid input format detected")
+            print("❌ Invalid input format")
             return
         }
 
-        // CRITICAL FIX: Use the EXACT input format, don't create a new one
-        // This prevents ANY format conversion from happening
-        let standardFormat = inputFormat
-        
-        #if os(iOS)
-        let audioSession = AVAudioSession.sharedInstance()
-        print("   Hardware sample rate: \(audioSession.sampleRate)")
-        print("   Using input format directly (no conversion): \(standardFormat)")
-        #endif
+        // The pull pipeline operates on mono Float32 at the input's sample rate.
+        // AVAudioMixerNode at the end will convert to whatever the output device needs.
+        let pipelineFormat = AVAudioFormat(standardFormatWithSampleRate: inputFormat.sampleRate,
+                                           channels: 1) ?? inputFormat
+        processingFormat = pipelineFormat
+        print("   Pipeline format: \(pipelineFormat)")
 
-        processingFormat = standardFormat
-        print("   Processing format: \(standardFormat)")
+        // (Re)allocate ring buffer and DSP chain sized for this format.
+        let capacity = max(AudioConstants.circularBufferSize, Int(pipelineFormat.sampleRate * 0.25))
+        ringBuffer = AudioRingBuffer(capacity: capacity)
+        dspChain = DSPChain(sampleRate: pipelineFormat.sampleRate)
+        syncDSPChainFromPublished()
 
-        // Attach all nodes
-        print("🔄 Attaching audio nodes...")
-        
-        // Detach nodes first if they're already attached (prevents crash)
-        let nodesToAttach = [pitchUnit, userEqUnit, eqUnit, distortionUnit, reverbUnit, mixerNode]
-        for node in nodesToAttach {
-            if audioEngine.attachedNodes.contains(node) {
-                audioEngine.detach(node)
+        // Render block: consumer of the ring buffer. Called on the audio thread.
+        // Must be allocation-free. Captures `ringBuffer` and `dspChain` unowned.
+        let rb = ringBuffer!
+        let chain = dspChain!
+        let renderBlock: AVAudioSourceNodeRenderBlock = { _, _, frameCount, audioBufferList in
+            let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
+            // Single channel pipeline: one buffer, write into .mData as Float32.
+            guard let mData = abl[0].mData else { return noErr }
+            let dst = mData.assumingMemoryBound(to: Float.self)
+            let requested = Int(frameCount)
+
+            let got = rb.read(dst, count: requested)
+            if got < requested {
+                // Underrun — fill the rest with silence rather than glitching garbage.
+                let silenceStart = dst.advanced(by: got)
+                silenceStart.update(repeating: 0, count: requested - got)
             }
+            chain.process(dst, frameCount: requested)
+            return noErr
         }
-        
-        // Now attach all nodes
-        audioEngine.attach(pitchUnit)
-        audioEngine.attach(userEqUnit)
-        audioEngine.attach(eqUnit)
-        audioEngine.attach(distortionUnit)
-        audioEngine.attach(reverbUnit)
+
+        sourceNode = AVAudioSourceNode(format: pipelineFormat, renderBlock: renderBlock)
+
+        // Attach pipeline nodes.
+        if audioEngine.attachedNodes.contains(mixerNode) { audioEngine.detach(mixerNode) }
+        audioEngine.attach(sourceNode)
         audioEngine.attach(mixerNode)
-        print("   ✓ All nodes attached")
 
-        // Connect audio chain directly (no format conversion needed)
-        // Input -> Pitch -> User EQ -> Formant EQ -> Distortion -> Reverb -> Mixer -> Output
-        print("🔄 Connecting audio chain...")
-        
-        // CRITICAL: Disconnect all nodes first to ensure clean connections
-        print("   Disconnecting any existing connections...")
-        audioEngine.disconnectNodeInput(pitchUnit)
-        audioEngine.disconnectNodeInput(userEqUnit)
-        audioEngine.disconnectNodeInput(eqUnit)
-        audioEngine.disconnectNodeInput(distortionUnit)
-        audioEngine.disconnectNodeInput(reverbUnit)
-        audioEngine.disconnectNodeInput(mixerNode)
-        print("   ✓ All nodes disconnected")
-        
-        // Now make fresh connections
-        do {
-            audioEngine.connect(inputNode, to: pitchUnit, format: standardFormat)
-            print("   ✓ Input -> Pitch")
-            
-            audioEngine.connect(pitchUnit, to: userEqUnit, format: standardFormat)
-            print("   ✓ Pitch -> UserEQ")
-            
-            audioEngine.connect(userEqUnit, to: eqUnit, format: standardFormat)
-            print("   ✓ UserEQ -> EQ")
-            
-            audioEngine.connect(eqUnit, to: distortionUnit, format: standardFormat)
-            print("   ✓ EQ -> Distortion")
-            
-            audioEngine.connect(distortionUnit, to: reverbUnit, format: standardFormat)
-            print("   ✓ Distortion -> Reverb")
-            
-            audioEngine.connect(reverbUnit, to: mixerNode, format: standardFormat)
-            print("   ✓ Reverb -> Mixer")
+        // Pipeline graph. inputNode is intentionally NOT connected — only tapped.
+        audioEngine.connect(sourceNode, to: mixerNode, format: pipelineFormat)
+        audioEngine.connect(mixerNode, to: outputNode, format: nil)
+        print("   ✓ Graph: [inputNode(tap only)] → ringBuffer → sourceNode → mixerNode → outputNode")
 
-            // Connect mixer to output (let it auto-convert to output format)
-            audioEngine.connect(mixerNode, to: outputNode, format: nil)
-            print("   ✓ Mixer -> Output")
-        } catch {
-            print("❌ Error connecting nodes: \(error)")
-            return
+        // Install input tap (producer). Format is whatever the mic offers natively —
+        // no downstream graph connection means no implicit converter, no crash.
+        inputNode.removeTap(onBus: 0)
+        // Tap buffer size is advisory on iOS; pick a size close to our IO buffer.
+        let tapBufferSize: AVAudioFrameCount = AudioConstants.tapBufferSize
+        inputNode.installTap(onBus: 0, bufferSize: tapBufferSize, format: inputFormat) { [weak self] buffer, _ in
+            self?.handleInputTapBuffer(buffer)
         }
 
-        // Setup tap for audio level monitoring on input
-        print("🔄 Installing audio taps...")
-        
-        // Remove any existing taps first
-        do {
-            inputNode.removeTap(onBus: 0)
-            print("   ✓ Removed existing input tap")
-        } catch {
-            print("   ℹ️ No existing input tap to remove")
-        }
-        
-        // Install input tap
-        do {
-            inputNode.installTap(onBus: 0, bufferSize: 1024, format: standardFormat) { [weak self] buffer, time in
-                self?.processInputBuffer(buffer)
-            }
-            print("   ✓ Input tap installed")
-        } catch {
-            print("   ❌ Failed to install input tap: \(error)")
-            return
-        }
-
-        // Remove any existing output tap
-        do {
-            mixerNode.removeTap(onBus: 0)
-            print("   ✓ Removed existing output tap")
-        } catch {
-            print("   ℹ️ No existing output tap to remove")
-        }
-        
-        // Install output tap
-        do {
-            mixerNode.installTap(onBus: 0, bufferSize: 1024, format: standardFormat) { [weak self] buffer, time in
-                self?.processOutputBuffer(buffer)
-
-                // If recording, write the processed audio
-                if let self = self, self.isRecording {
-                    do {
-                        try self.audioRecorder?.writeBuffer(buffer)
-                    } catch {
-                        print("⚠️ Recording buffer write failed: \(error)")
-                        // Stop recording on error to prevent corruption
-                        DispatchQueue.main.async {
-                            _ = self.stopRecording()
-                        }
-                    }
+        // Output tap on mixer (level meter + recording). Use the mixer's actual
+        // output format rather than pipelineFormat — iOS sets the mixer's output
+        // format from the downstream connection (outputNode), not our input side,
+        // so passing a mismatched format to installTap silently drops buffers or
+        // hands us frames in the wrong layout.
+        mixerNode.removeTap(onBus: 0)
+        let mixerOutputFormat = mixerNode.outputFormat(forBus: 0)
+        recordingFormat = mixerOutputFormat
+        mixerNode.installTap(onBus: 0, bufferSize: tapBufferSize, format: mixerOutputFormat) { [weak self] buffer, _ in
+            self?.processOutputBuffer(buffer)
+            if let self = self, self.isRecording {
+                do {
+                    try self.audioRecorder?.writeBuffer(buffer)
+                } catch {
+                    print("⚠️ Recording buffer write failed: \(error)")
+                    DispatchQueue.main.async { _ = self.stopRecording() }
                 }
             }
-            print("   ✓ Output tap installed")
-        } catch {
-            print("   ❌ Failed to install output tap: \(error)")
-            return
         }
 
         print("✅ Audio graph configured successfully")
+    }
+
+    /// Convert the incoming tap buffer (which may be multichannel or at a different
+    /// rate than the pipeline declares) into mono Float32 at the pipeline's rate and
+    /// push into the ring buffer. Runs on the audio thread.
+    private func handleInputTapBuffer(_ buffer: AVAudioPCMBuffer) {
+        guard let channelData = buffer.floatChannelData else { return }
+        let frames = Int(buffer.frameLength)
+        guard frames > 0 else { return }
+
+        // Mic is typically mono already; if not, downmix to mono by averaging.
+        if buffer.format.channelCount == 1 {
+            let _ = ringBuffer?.write(channelData[0], count: frames)
+        } else {
+            // Pre-allocated scratch for occasional stereo mics. Allocation on
+            // audio thread is unavoidable here without threading more state;
+            // acceptable as a one-off downmix until we adopt a SourceNode-native
+            // input AU in a later pass.
+            var mono = [Float](repeating: 0, count: frames)
+            let chans = Int(buffer.format.channelCount)
+            mono.withUnsafeMutableBufferPointer { m in
+                for f in 0..<frames {
+                    var sum: Float = 0
+                    for c in 0..<chans { sum += channelData[c][f] }
+                    m[f] = sum / Float(chans)
+                }
+                _ = ringBuffer?.write(m.baseAddress!, count: frames)
+            }
+        }
+
+        // Also update input-level meter from the mono sum (throttled in callee).
+        processInputBuffer(buffer)
+    }
+
+    /// Push all @Published effect parameters into the DSP chain. Call whenever the
+    /// chain is freshly constructed (e.g. after setupAudioGraph).
+    private func syncDSPChainFromPublished() {
+        guard let chain = dspChain else { return }
+        chain.pitchShiftSemitones = pitchShift
+        chain.timeStretch = timeStretch
+        chain.formantShift = formantShift
+        chain.vocalTractLength = vocalTractLength
+        chain.noiseReduction = noiseReduction
+        chain.bassGain = bassGain
+        chain.midGain = midGain
+        chain.trebleGain = trebleGain
+        chain.reverbAmount = reverbAmount
+        chain.bitDepth = bitDepth
     }
 
     private func processInputBuffer(_ buffer: AVAudioPCMBuffer) {
@@ -678,7 +655,6 @@ class VoiceChangerAudioEngine: ObservableObject {
                 throw AudioEngineError.engineStartFailed(error)
             }
             
-            // Prepare and start the engine
             print("🔄 Preparing audio engine...")
             audioEngine.prepare()
             
@@ -739,23 +715,26 @@ class VoiceChangerAudioEngine: ObservableObject {
             return
         }
 
+        NSLog("VCP-REC stopProcessing — finalising any active recording")
+
+        if isRecording {
+            let url = finishRecordingLocked()
+            if let url = url {
+                DispatchQueue.main.async { [weak self] in
+                    self?.onRecordingFinished?(url)
+                }
+            }
+        }
+
         print("🔄 Stopping audio processing...")
-        
+
         // CRITICAL: Remove taps BEFORE stopping engine
         print("   Removing audio taps...")
-        do {
-            inputNode.removeTap(onBus: 0)
-            print("   ✓ Input tap removed")
-        } catch {
-            print("   ⚠️ Input tap removal failed: \(error)")
-        }
-        
-        do {
-            mixerNode.removeTap(onBus: 0)
-            print("   ✓ Mixer tap removed")
-        } catch {
-            print("   ⚠️ Mixer tap removal failed: \(error)")
-        }
+        inputNode.removeTap(onBus: 0)
+        print("   ✓ Input tap removed")
+
+        mixerNode.removeTap(onBus: 0)
+        print("   ✓ Mixer tap removed")
         
         // Stop the engine
         if audioEngine.isRunning {
@@ -779,99 +758,26 @@ class VoiceChangerAudioEngine: ObservableObject {
 
     // MARK: - Parameter Updates
 
-    private func setupEQ() {
-        // Setup user-facing tone controls
-        guard userEqUnit.bands.count >= 3 else { return }
-        
-        // Bass (80 Hz)
-        userEqUnit.bands[0].frequency = 80
-        userEqUnit.bands[0].bandwidth = 1.0
-        userEqUnit.bands[0].gain = 0.0
-        userEqUnit.bands[0].bypass = false
-        userEqUnit.bands[0].filterType = .parametric
-        
-        // Mid (1000 Hz)
-        userEqUnit.bands[1].frequency = 1000
-        userEqUnit.bands[1].bandwidth = 1.0
-        userEqUnit.bands[1].gain = 0.0
-        userEqUnit.bands[1].bypass = false
-        userEqUnit.bands[1].filterType = .parametric
-        
-        // Treble (8000 Hz)
-        userEqUnit.bands[2].frequency = 8000
-        userEqUnit.bands[2].bandwidth = 1.0
-        userEqUnit.bands[2].gain = 0.0
-        userEqUnit.bands[2].bypass = false
-        userEqUnit.bands[2].filterType = .parametric
-        
-        // Setup formant/vocal tract EQ
-        guard eqUnit.bands.count >= 3 else { return }
-        
-        // Formant frequencies for vocal modification
-        eqUnit.bands[0].frequency = 700   // F1
-        eqUnit.bands[0].bandwidth = 0.5
-        eqUnit.bands[0].gain = 0.0
-        eqUnit.bands[0].bypass = false
-        eqUnit.bands[0].filterType = .parametric
-        
-        eqUnit.bands[1].frequency = 1500  // F2
-        eqUnit.bands[1].bandwidth = 0.5
-        eqUnit.bands[1].gain = 0.0
-        eqUnit.bands[1].bypass = false
-        eqUnit.bands[1].filterType = .parametric
-        
-        eqUnit.bands[2].frequency = 2500  // F3
-        eqUnit.bands[2].bandwidth = 0.5
-        eqUnit.bands[2].gain = 0.0
-        eqUnit.bands[2].bypass = false
-        eqUnit.bands[2].filterType = .parametric
-    }
-
-    private func setupReverb() {
-        reverbUnit.loadFactoryPreset(.mediumHall)
-        reverbUnit.wetDryMix = 0
-    }
-
     private func updatePitchShift() {
-        // Pitch shift in cents (-2400 to +2400 = -2 to +2 octaves)
-        pitchUnit.pitch = pitchShift * 100
+        NSLog(String(format: "VCP-PITCH-UPDATE semitones=%.2f dspChain=%@",
+                     pitchShift, dspChain == nil ? "nil" : "live"))
+        dspChain?.pitchShiftSemitones = pitchShift
     }
 
     private func updateFormantShift() {
-        // Simulate formant shift using EQ bands
-        // Shift formant frequencies up or down
-        guard eqUnit.bands.count >= 3 else { return }
-        
-        let shift = formantShift
-        
-        // Adjust formant frequencies
-        eqUnit.bands[0].frequency = 700 * shift   // F1
-        eqUnit.bands[1].frequency = 1500 * shift  // F2
-        eqUnit.bands[2].frequency = 2500 * shift  // F3
-        
-        // Adjust gains to emphasize the shift
-        let gainAdjust = (shift - 1.0) * 10
-        eqUnit.bands[0].gain = gainAdjust
-        eqUnit.bands[1].gain = gainAdjust
-        eqUnit.bands[2].gain = gainAdjust
+        dspChain?.formantShift = formantShift
     }
 
     private func updateTimeStretch() {
-        // Time stretch without pitch change
-        pitchUnit.rate = timeStretch
+        dspChain?.timeStretch = timeStretch
     }
 
     private func updateVocalTractLength() {
-        // Simulate vocal tract length changes using formant shifting
-        updateFormantShift()
+        dspChain?.vocalTractLength = vocalTractLength
     }
 
     private func updateNoiseReduction() {
-        // This would require a custom noise gate/reduction unit
-        // For now, we can use EQ to reduce high-frequency noise
-        if userEqUnit.bands.count >= 3 {
-            userEqUnit.bands[2].gain = -noiseReduction * 10
-        }
+        dspChain?.noiseReduction = noiseReduction
     }
 
     private func updateMasterVolume() {
@@ -879,21 +785,21 @@ class VoiceChangerAudioEngine: ObservableObject {
     }
 
     private func updateEQ() {
-        guard userEqUnit.bands.count >= 3 else { return }
-        
-        userEqUnit.bands[0].gain = bassGain
-        userEqUnit.bands[1].gain = midGain
-        userEqUnit.bands[2].gain = trebleGain
+        NSLog(String(format: "VCP-EQ-UPDATE bass=%.2f mid=%.2f treble=%.2f dspChain=%@",
+                     bassGain, midGain, trebleGain, dspChain == nil ? "nil" : "live"))
+        dspChain?.bassGain = bassGain
+        dspChain?.midGain = midGain
+        dspChain?.trebleGain = trebleGain
     }
 
     private func updateReverb() {
-        reverbUnit.wetDryMix = reverbAmount * 100
+        NSLog(String(format: "VCP-REVERB-UPDATE amount=%.2f dspChain=%@",
+                     reverbAmount, dspChain == nil ? "nil" : "live"))
+        dspChain?.reverbAmount = reverbAmount
     }
 
     private func updateBitDepth() {
-        // Bit depth crushing would require a custom audio unit
-        // This is a placeholder for the effect
-        distortionUnit.wetDryMix = (16.0 - bitDepth) / 16.0 * 100
+        dspChain?.bitDepth = bitDepth
     }
 
     func resetToFactory() {
@@ -919,28 +825,34 @@ class VoiceChangerAudioEngine: ObservableObject {
 
     func startRecording() {
         guard isProcessing, !isRecording else { return }
-        
+
         do {
-            // Use the processing format for recording
-            let format = processingFormat ?? mixerNode.outputFormat(forBus: 0)
-            
-            // Start the recorder
+            // Recording must use the exact format the mixer tap delivers; otherwise
+            // AVAudioFile rejects the buffer at write time.
+            let format = recordingFormat ?? mixerNode.outputFormat(forBus: 0)
             recordingFile = try audioRecorder?.startRecording(format: format)
             isRecording = true
-            
-            print("Recording started with format: \(format)")
+            NSLog("VCP-REC startRecording format=\(format)")
         } catch {
-            print("Failed to start recording: \(error)")
+            NSLog("VCP-REC startRecording FAILED: \(error.localizedDescription)")
         }
     }
 
     func stopRecording() -> URL? {
         guard isRecording else { return nil }
-        
+        return finishRecordingLocked()
+    }
+
+    /// Core recording finaliser. Safe to call whether engineLock is held or not —
+    /// AudioRecorder is independent of engine state. Does NOT remove the mixer
+    /// tap (that stays installed for level metering / future Record sessions
+    /// during the same Start cycle).
+    @discardableResult
+    private func finishRecordingLocked() -> URL? {
+        guard isRecording else { return nil }
         isRecording = false
         let url = audioRecorder?.stopRecording()
-        
-        print("Recording stopped: \(url?.lastPathComponent ?? "unknown")")
+        NSLog("VCP-REC stopRecording file=\(url?.lastPathComponent ?? "<nil>")")
         return url
     }
 
@@ -983,36 +895,20 @@ class VoiceChangerAudioEngine: ObservableObject {
             guard let player = playbackPlayerNode else { return }
             
             audioEngine.attach(player)
-            
-            // Attach effects nodes
-            audioEngine.attach(pitchUnit)
-            audioEngine.attach(userEqUnit)
-            audioEngine.attach(eqUnit)
-            audioEngine.attach(reverbUnit)
-            audioEngine.attach(distortionUnit)
             audioEngine.attach(mixerNode)
-            
-            // CRITICAL FIX: Use consistent format throughout the chain
-            // Create standard format matching the file's sample rate and channel count
+
             guard let standardFormat = AVAudioFormat(
                 commonFormat: .pcmFormatFloat32,
                 sampleRate: fileFormat.sampleRate,
-                channels: fileFormat.channelCount,  // Match file's channel count
+                channels: fileFormat.channelCount,
                 interleaved: false
             ) else {
                 print("Failed to create playback format")
                 return
             }
-            
-            // Connect playback chain with consistent format
-            // Player -> Effects -> Output (all using standardFormat)
-            audioEngine.connect(player, to: pitchUnit, format: standardFormat)
-            audioEngine.connect(pitchUnit, to: userEqUnit, format: standardFormat)
-            audioEngine.connect(userEqUnit, to: eqUnit, format: standardFormat)
-            audioEngine.connect(eqUnit, to: distortionUnit, format: standardFormat)
-            audioEngine.connect(distortionUnit, to: reverbUnit, format: standardFormat)
-            audioEngine.connect(reverbUnit, to: mixerNode, format: standardFormat)
-            audioEngine.connect(mixerNode, to: outputNode, format: nil)  // Auto-convert to output
+
+            audioEngine.connect(player, to: mixerNode, format: standardFormat)
+            audioEngine.connect(mixerNode, to: outputNode, format: nil)
             
             // Prepare and start the engine
             audioEngine.prepare()
@@ -1059,7 +955,7 @@ class VoiceChangerAudioEngine: ObservableObject {
 
         // Cleanup nodes on a background queue to avoid blocking
         let player = playbackPlayerNode
-        let nodesToCleanup: [AVAudioNode] = [pitchUnit, userEqUnit, eqUnit, distortionUnit, reverbUnit, mixerNode]
+        let nodesToCleanup: [AVAudioNode] = [mixerNode]
 
         DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.05) { [weak self] in
             guard let self = self else { return }

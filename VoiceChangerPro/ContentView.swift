@@ -118,6 +118,9 @@ struct ContentView: View {
         }
         .onAppear {
             requestMicrophonePermission()
+            audioEngine.onRecordingFinished = { url in
+                recordingManager.addRecording(url: url)
+            }
         }
     }
 
