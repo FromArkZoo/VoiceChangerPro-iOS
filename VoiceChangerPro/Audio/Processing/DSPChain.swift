@@ -50,6 +50,30 @@ final class DSPChain: @unchecked Sendable {
                          reverbAmount, reverbAmount, 1.0 - reverbAmount))
         }
     } }
+    var tremoloRate: Float = 0.0 { didSet {
+        if oldValue != tremoloRate {
+            NSLog("VCP-TREMOLO-SET rate=\(String(format: "%.2f", tremoloRate))")
+            tremolo.rateHz = tremoloRate
+        }
+    } }
+    var tremoloDepth: Float = 0.0 { didSet {
+        if oldValue != tremoloDepth {
+            NSLog("VCP-TREMOLO-SET depth=\(String(format: "%.2f", tremoloDepth))")
+            tremolo.depth = tremoloDepth
+        }
+    } }
+    var ringModRate: Float = 0.0 { didSet {
+        if oldValue != ringModRate {
+            NSLog("VCP-RINGMOD-SET rate=\(String(format: "%.2f", ringModRate))")
+            ringMod.rateHz = ringModRate
+        }
+    } }
+    var ringModMix: Float = 0.0 { didSet {
+        if oldValue != ringModMix {
+            NSLog("VCP-RINGMOD-SET mix=\(String(format: "%.2f", ringModMix))")
+            ringMod.mix = ringModMix
+        }
+    } }
     var bitDepth: Float = 16.0
 
     private var bassFilter = BiquadFilter()
@@ -57,6 +81,8 @@ final class DSPChain: @unchecked Sendable {
     private var trebleFilter = BiquadFilter()
     private let pitchVocoder: RubberBandPitchShifter
     private let reverb: SchroederReverb
+    private let ringMod: RingModulator
+    private let tremolo: Tremolo
 
     // Low-shelf pivot, one mid peaking band, high-shelf pivot —
     // matches the UI's three dB sliders.
@@ -70,6 +96,8 @@ final class DSPChain: @unchecked Sendable {
         self.sampleRate = sampleRate
         self.pitchVocoder = RubberBandPitchShifter(sampleRate: sampleRate)
         self.reverb = SchroederReverb(sampleRate: sampleRate)
+        self.ringMod = RingModulator(sampleRate: sampleRate)
+        self.tremolo = Tremolo(sampleRate: sampleRate)
         recomputeEQ()
     }
 
@@ -79,6 +107,8 @@ final class DSPChain: @unchecked Sendable {
         trebleFilter.reset()
         pitchVocoder.reset()
         reverb.reset()
+        ringMod.reset()
+        tremolo.reset()
     }
 
     func process(_ samples: UnsafeMutablePointer<Float>, frameCount: Int) {
@@ -90,8 +120,14 @@ final class DSPChain: @unchecked Sendable {
         if bassGain != 0 { bassFilter.process(samples, frameCount: frameCount) }
         if midGain != 0 { midFilter.process(samples, frameCount: frameCount) }
         if trebleGain != 0 { trebleFilter.process(samples, frameCount: frameCount) }
-        // Reverb last so the tail is coloured by the upstream spectrum.
+        // Tremolo before reverb so the wobble feeds into the tail — gives the
+        // Ghostly preset its breathing-through-a-cave quality.
+        if tremoloDepth > 0 { tremolo.process(samples, frameCount: frameCount) }
+        // Reverb next so the tail is coloured by the upstream spectrum.
         if reverbAmount > 0 { reverb.process(samples, frameCount: frameCount) }
+        // Ring mod last — the modulator chews on the reverb tail for a more
+        // synthetic "robot" character. Bypassed entirely at mix == 0.
+        if ringModMix > 0 { ringMod.process(samples, frameCount: frameCount) }
     }
 
     private func recomputeEQ() {

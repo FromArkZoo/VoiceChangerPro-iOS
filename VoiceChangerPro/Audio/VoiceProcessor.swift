@@ -12,15 +12,67 @@ struct VoicePreset: Codable {
     let mid: Float
     let treble: Float
     let reverb: Float
+    let ringModRate: Float
+    let ringModMix: Float
+    let tremoloRate: Float
+    let tremoloDepth: Float
+
+    init(name: String,
+         pitch: Float,
+         formant: Float = 1.0,
+         timeStretch: Float = 1.0,
+         vocalTract: Float = 1.0,
+         bass: Float,
+         mid: Float,
+         treble: Float,
+         reverb: Float,
+         ringModRate: Float = 0,
+         ringModMix: Float = 0,
+         tremoloRate: Float = 0,
+         tremoloDepth: Float = 0) {
+        self.name = name
+        self.pitch = pitch
+        self.formant = formant
+        self.timeStretch = timeStretch
+        self.vocalTract = vocalTract
+        self.bass = bass
+        self.mid = mid
+        self.treble = treble
+        self.reverb = reverb
+        self.ringModRate = ringModRate
+        self.ringModMix = ringModMix
+        self.tremoloRate = tremoloRate
+        self.tremoloDepth = tremoloDepth
+    }
+
+    // Custom decoder so older saved presets decode cleanly with sane defaults
+    // for fields added after they were saved.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        pitch = try c.decode(Float.self, forKey: .pitch)
+        formant = try c.decodeIfPresent(Float.self, forKey: .formant) ?? 1.0
+        timeStretch = try c.decodeIfPresent(Float.self, forKey: .timeStretch) ?? 1.0
+        vocalTract = try c.decodeIfPresent(Float.self, forKey: .vocalTract) ?? 1.0
+        bass = try c.decode(Float.self, forKey: .bass)
+        mid = try c.decode(Float.self, forKey: .mid)
+        treble = try c.decode(Float.self, forKey: .treble)
+        reverb = try c.decode(Float.self, forKey: .reverb)
+        ringModRate = try c.decodeIfPresent(Float.self, forKey: .ringModRate) ?? 0
+        ringModMix = try c.decodeIfPresent(Float.self, forKey: .ringModMix) ?? 0
+        tremoloRate = try c.decodeIfPresent(Float.self, forKey: .tremoloRate) ?? 0
+        tremoloDepth = try c.decodeIfPresent(Float.self, forKey: .tremoloDepth) ?? 0
+    }
 
     static let presets = [
-        VoicePreset(name: "Natural Male", pitch: 0, formant: 1.0, timeStretch: 1.0, vocalTract: 1.0, bass: 0, mid: 0, treble: 0, reverb: 0),
-        VoicePreset(name: "Natural Female", pitch: 3, formant: 1.15, timeStretch: 1.0, vocalTract: 0.9, bass: 0, mid: 2, treble: 1, reverb: 0),
-        VoicePreset(name: "Child Voice", pitch: 8, formant: 1.3, timeStretch: 1.1, vocalTract: 0.8, bass: -2, mid: 3, treble: 2, reverb: 0),
-        VoicePreset(name: "Elderly Voice", pitch: -2, formant: 0.9, timeStretch: 0.95, vocalTract: 1.1, bass: 1, mid: -1, treble: -2, reverb: 0),
-        VoicePreset(name: "Robot Voice", pitch: 0, formant: 0.7, timeStretch: 1.0, vocalTract: 1.2, bass: 2, mid: -3, treble: 4, reverb: 0.2),
-        VoicePreset(name: "Alien Voice", pitch: 12, formant: 0.6, timeStretch: 1.2, vocalTract: 0.7, bass: -4, mid: 6, treble: 2, reverb: 0.4),
-        VoicePreset(name: "Monster Voice", pitch: -8, formant: 0.5, timeStretch: 0.8, vocalTract: 1.5, bass: 6, mid: -2, treble: -4, reverb: 0.3)
+        VoicePreset(name: "Chipmunk",  pitch: 10, bass:  0, mid:  0, treble:  4, reverb: 0.05),
+        VoicePreset(name: "Tiny",      pitch: 12, bass: -6, mid:  0, treble:  6, reverb: 0.00),
+        VoicePreset(name: "Giant",     pitch: -12, bass:  8, mid:  0, treble: -4, reverb: 0.15),
+        VoicePreset(name: "Dark Lord", pitch: -9, bass:  6, mid: -2, treble: -2, reverb: 0.40),
+        VoicePreset(name: "Ghostly",   pitch:  5, bass: -4, mid:  2, treble:  4, reverb: 0.70,
+                    tremoloRate: 4.0, tremoloDepth: 0.4),
+        VoicePreset(name: "Robot",     pitch:  0, bass:  0, mid:  4, treble:  2, reverb: 0.10,
+                    ringModRate: 50, ringModMix: 0.60)
     ]
 }
 
@@ -248,6 +300,10 @@ extension VoiceProcessor {
         audioEngine.midGain = preset.mid
         audioEngine.trebleGain = preset.treble
         audioEngine.reverbAmount = preset.reverb
+        audioEngine.ringModRate = preset.ringModRate
+        audioEngine.ringModMix = preset.ringModMix
+        audioEngine.tremoloRate = preset.tremoloRate
+        audioEngine.tremoloDepth = preset.tremoloDepth
     }
 
     func createCustomPreset(from audioEngine: VoiceChangerAudioEngine, name: String) -> VoicePreset {
@@ -260,7 +316,11 @@ extension VoiceProcessor {
             bass: audioEngine.bassGain,
             mid: audioEngine.midGain,
             treble: audioEngine.trebleGain,
-            reverb: audioEngine.reverbAmount
+            reverb: audioEngine.reverbAmount,
+            ringModRate: audioEngine.ringModRate,
+            ringModMix: audioEngine.ringModMix,
+            tremoloRate: audioEngine.tremoloRate,
+            tremoloDepth: audioEngine.tremoloDepth
         )
     }
 }

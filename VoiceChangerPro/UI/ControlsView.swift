@@ -92,6 +92,40 @@ struct ControlsView: View {
                     )
 
                     VoiceParameterSlider(
+                        title: "Tremolo Rate",
+                        value: $audioEngine.tremoloRate,
+                        range: 0...20,
+                        unit: "Hz",
+                        format: "%.1f"
+                    )
+
+                    VoiceParameterSlider(
+                        title: "Tremolo Depth",
+                        value: $audioEngine.tremoloDepth,
+                        range: 0...1,
+                        unit: "%",
+                        format: "%.0f",
+                        multiplier: 100
+                    )
+
+                    VoiceParameterSlider(
+                        title: "Ring Mod Rate",
+                        value: $audioEngine.ringModRate,
+                        range: 0...200,
+                        unit: "Hz",
+                        format: "%.0f"
+                    )
+
+                    VoiceParameterSlider(
+                        title: "Ring Mod Depth",
+                        value: $audioEngine.ringModMix,
+                        range: 0...1,
+                        unit: "%",
+                        format: "%.0f",
+                        multiplier: 100
+                    )
+
+                    VoiceParameterSlider(
                         title: "Bit Depth",
                         value: $audioEngine.bitDepth,
                         range: 2...16,

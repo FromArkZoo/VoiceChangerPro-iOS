@@ -88,6 +88,10 @@ class VoiceChangerAudioEngine: ObservableObject {
     @Published var midGain: Float = 0.0 { didSet { updateEQ() } }
     @Published var trebleGain: Float = 0.0 { didSet { updateEQ() } }
     @Published var reverbAmount: Float = 0.0 { didSet { updateReverb() } }
+    @Published var ringModRate: Float = 0.0 { didSet { updateRingMod() } }
+    @Published var ringModMix: Float = 0.0 { didSet { updateRingMod() } }
+    @Published var tremoloRate: Float = 0.0 { didSet { updateTremolo() } }
+    @Published var tremoloDepth: Float = 0.0 { didSet { updateTremolo() } }
     @Published var bitDepth: Float = 16.0 { didSet { updateBitDepth() } }
 
     // Audio level monitoring
@@ -526,6 +530,10 @@ class VoiceChangerAudioEngine: ObservableObject {
         chain.midGain = midGain
         chain.trebleGain = trebleGain
         chain.reverbAmount = reverbAmount
+        chain.ringModRate = ringModRate
+        chain.ringModMix = ringModMix
+        chain.tremoloRate = tremoloRate
+        chain.tremoloDepth = tremoloDepth
         chain.bitDepth = bitDepth
     }
 
@@ -798,6 +806,20 @@ class VoiceChangerAudioEngine: ObservableObject {
         dspChain?.reverbAmount = reverbAmount
     }
 
+    private func updateRingMod() {
+        NSLog(String(format: "VCP-RINGMOD-UPDATE rate=%.2f mix=%.2f dspChain=%@",
+                     ringModRate, ringModMix, dspChain == nil ? "nil" : "live"))
+        dspChain?.ringModRate = ringModRate
+        dspChain?.ringModMix = ringModMix
+    }
+
+    private func updateTremolo() {
+        NSLog(String(format: "VCP-TREMOLO-UPDATE rate=%.2f depth=%.2f dspChain=%@",
+                     tremoloRate, tremoloDepth, dspChain == nil ? "nil" : "live"))
+        dspChain?.tremoloRate = tremoloRate
+        dspChain?.tremoloDepth = tremoloDepth
+    }
+
     private func updateBitDepth() {
         dspChain?.bitDepth = bitDepth
     }
@@ -813,6 +835,10 @@ class VoiceChangerAudioEngine: ObservableObject {
         midGain = 0.0
         trebleGain = 0.0
         reverbAmount = 0.0
+        ringModRate = 0.0
+        ringModMix = 0.0
+        tremoloRate = 0.0
+        tremoloDepth = 0.0
         bitDepth = 16.0
     }
 

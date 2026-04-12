@@ -17,6 +17,16 @@
 		8BE2D34D2EA3BFF5003E8361 /* DSPChain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BE2D34C2EA3BFF5003E8361 /* DSPChain.swift */; };
 		8BE2D34F2EA3BFF5003E8361 /* BiquadFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BE2D34E2EA3BFF5003E8361 /* BiquadFilter.swift */; };
 		8BE2D3532EA3BFF5003E8361 /* SchroederReverb.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BE2D3522EA3BFF5003E8361 /* SchroederReverb.swift */; };
+		8BE2D5552EA3BFF5003E8361 /* RingModulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BE2D5542EA3BFF5003E8361 /* RingModulator.swift */; };
+		8BE2D5772EA3BFF5003E8361 /* Tremolo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BE2D5762EA3BFF5003E8361 /* Tremolo.swift */; };
+		BAU000000000000000001 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAU000000000000000011 /* Theme.swift */; };
+		BAU000000000000000002 /* MorphingPadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAU000000000000000012 /* MorphingPadView.swift */; };
+		BAU000000000000000003 /* SignalMonitorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAU000000000000000013 /* SignalMonitorView.swift */; };
+		BAU000000000000000004 /* BauhausControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAU000000000000000014 /* BauhausControls.swift */; };
+		BAU000000000000000005 /* ControlTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAU000000000000000015 /* ControlTabView.swift */; };
+		BAU000000000000000006 /* EqualizerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAU000000000000000016 /* EqualizerView.swift */; };
+		BAU000000000000000007 /* ModulesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAU000000000000000017 /* ModulesView.swift */; };
+		BAU000000000000000008 /* PresetsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAU000000000000000018 /* PresetsView.swift */; };
 		A01 /* VoiceChangerProApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51 /* VoiceChangerProApp.swift */; };
 		A02 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A52 /* ContentView.swift */; };
 		A03 /* AudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A53 /* AudioEngine.swift */; };
@@ -65,6 +75,16 @@
 		8BE2D34C2EA3BFF5003E8361 /* DSPChain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DSPChain.swift; sourceTree = "<group>"; };
 		8BE2D34E2EA3BFF5003E8361 /* BiquadFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiquadFilter.swift; sourceTree = "<group>"; };
 		8BE2D3522EA3BFF5003E8361 /* SchroederReverb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchroederReverb.swift; sourceTree = "<group>"; };
+		8BE2D5542EA3BFF5003E8361 /* RingModulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingModulator.swift; sourceTree = "<group>"; };
+		8BE2D5762EA3BFF5003E8361 /* Tremolo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tremolo.swift; sourceTree = "<group>"; };
+		BAU000000000000000011 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		BAU000000000000000012 /* MorphingPadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorphingPadView.swift; sourceTree = "<group>"; };
+		BAU000000000000000013 /* SignalMonitorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignalMonitorView.swift; sourceTree = "<group>"; };
+		BAU000000000000000014 /* BauhausControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BauhausControls.swift; sourceTree = "<group>"; };
+		BAU000000000000000015 /* ControlTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlTabView.swift; sourceTree = "<group>"; };
+		BAU000000000000000016 /* EqualizerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EqualizerView.swift; sourceTree = "<group>"; };
+		BAU000000000000000017 /* ModulesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModulesView.swift; sourceTree = "<group>"; };
+		BAU000000000000000018 /* PresetsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetsView.swift; sourceTree = "<group>"; };
 		A50 /* VoiceChangerPro.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VoiceChangerPro.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A51 /* VoiceChangerProApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceChangerProApp.swift; sourceTree = "<group>"; };
 		A52 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -125,6 +145,8 @@
 				8BE2D34C2EA3BFF5003E8361 /* DSPChain.swift */,
 				8BE2D34E2EA3BFF5003E8361 /* BiquadFilter.swift */,
 				8BE2D3522EA3BFF5003E8361 /* SchroederReverb.swift */,
+				8BE2D5542EA3BFF5003E8361 /* RingModulator.swift */,
+				8BE2D5762EA3BFF5003E8361 /* Tremolo.swift */,
 				VCBR000000000000000001 /* RubberBandBridge.h */,
 				VCBR000000000000000002 /* RubberBandBridge.mm */,
 				VCBR000000000000000003 /* RubberBandPitchShifter.swift */,
@@ -184,6 +206,14 @@
 		A24 /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				BAU000000000000000011 /* Theme.swift */,
+				BAU000000000000000014 /* BauhausControls.swift */,
+				BAU000000000000000012 /* MorphingPadView.swift */,
+				BAU000000000000000013 /* SignalMonitorView.swift */,
+				BAU000000000000000015 /* ControlTabView.swift */,
+				BAU000000000000000016 /* EqualizerView.swift */,
+				BAU000000000000000017 /* ModulesView.swift */,
+				BAU000000000000000018 /* PresetsView.swift */,
 				A55 /* VisualizationView.swift */,
 				A56 /* ControlsView.swift */,
 				A63 /* RecordingsListView.swift */,
@@ -366,6 +396,16 @@
 				8BE2D34D2EA3BFF5003E8361 /* DSPChain.swift in Sources */,
 				8BE2D34F2EA3BFF5003E8361 /* BiquadFilter.swift in Sources */,
 				8BE2D3532EA3BFF5003E8361 /* SchroederReverb.swift in Sources */,
+				8BE2D5552EA3BFF5003E8361 /* RingModulator.swift in Sources */,
+				8BE2D5772EA3BFF5003E8361 /* Tremolo.swift in Sources */,
+				BAU000000000000000001 /* Theme.swift in Sources */,
+				BAU000000000000000002 /* MorphingPadView.swift in Sources */,
+				BAU000000000000000003 /* SignalMonitorView.swift in Sources */,
+				BAU000000000000000004 /* BauhausControls.swift in Sources */,
+				BAU000000000000000005 /* ControlTabView.swift in Sources */,
+				BAU000000000000000006 /* EqualizerView.swift in Sources */,
+				BAU000000000000000007 /* ModulesView.swift in Sources */,
+				BAU000000000000000008 /* PresetsView.swift in Sources */,
 				BBBF006C42D569C51D1827 /* RubberBandStretcher.cpp in Sources */,
 				BBBF00397658C618B3B9B2 /* Allocators.cpp in Sources */,
 				BBBF002BCC637E2111D52C /* BQResampler.cpp in Sources */,
@@ -547,9 +587,9 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "VoiceChangerPro/VoiceChangerPro-Bridging-Header.h";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = VoiceChangerPro/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "";
+				INFOPLIST_KEY_CFBundleDisplayName = "JB Voicechanger";
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Voice Changer needs microphone access to process your voice in real-time.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "JB Voicechanger needs microphone access to process your voice in real-time.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = microphone;
@@ -602,9 +642,9 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "VoiceChangerPro/VoiceChangerPro-Bridging-Header.h";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = VoiceChangerPro/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "";
+				INFOPLIST_KEY_CFBundleDisplayName = "JB Voicechanger";
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Voice Changer needs microphone access to process your voice in real-time.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "JB Voicechanger needs microphone access to process your voice in real-time.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = microphone;
