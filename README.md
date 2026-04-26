@@ -2,6 +2,10 @@
 
 A professional-grade voice changing app for iOS with real-time audio processing, advanced voice transformation effects, and sophisticated visualizations.
 
+<p align="center">
+  <img src="screenshot.png" alt="Voice Changer Pro — Bauhaus-styled control view with waveform, modulator card, and XY morph pad" width="320">
+</p>
+
 ## Features
 
 ### Core Audio Processing
