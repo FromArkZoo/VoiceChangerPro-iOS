@@ -113,10 +113,19 @@ final class DSPChain: @unchecked Sendable {
 
     func process(_ samples: UnsafeMutablePointer<Float>, frameCount: Int) {
         guard frameCount > 0 else { return }
+        // Sanitize input: if any sample is NaN/inf (rare, but a single one
+        // that reaches a recursive filter — comb, biquad — will latch into
+        // the delay state and silence everything thereafter), force it to 0.
+        for i in 0..<frameCount {
+            if !samples[i].isFinite { samples[i] = 0 }
+        }
         // Pitch shift first so downstream EQ operates on the shifted spectrum —
         // the typical mastering order, and what the user expects when they
         // notch a freq and then transpose.
         pitchVocoder.process(samples, frameCount: frameCount)
+        for i in 0..<frameCount {
+            if !samples[i].isFinite { samples[i] = 0 }
+        }
         if bassGain != 0 { bassFilter.process(samples, frameCount: frameCount) }
         if midGain != 0 { midFilter.process(samples, frameCount: frameCount) }
         if trebleGain != 0 { trebleFilter.process(samples, frameCount: frameCount) }

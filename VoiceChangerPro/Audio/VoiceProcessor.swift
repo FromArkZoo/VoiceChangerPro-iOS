@@ -304,6 +304,12 @@ extension VoiceProcessor {
         audioEngine.ringModMix = preset.ringModMix
         audioEngine.tremoloRate = preset.tremoloRate
         audioEngine.tremoloDepth = preset.tremoloDepth
+        // Clear any stale state in the DSP graph so the new mix starts clean.
+        // Without this, a comb filter or biquad that was bypassed in the
+        // previous configuration can re-engage with state that produces a
+        // click, or worse, latches into a NaN-producing mode that silences
+        // the output.
+        audioEngine.resetEffectsState()
     }
 
     func createCustomPreset(from audioEngine: VoiceChangerAudioEngine, name: String) -> VoicePreset {

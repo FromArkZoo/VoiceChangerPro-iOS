@@ -842,6 +842,16 @@ class VoiceChangerAudioEngine: ObservableObject {
         bitDepth = 16.0
     }
 
+    /// Reset all DSP state (delay lines, biquad memory, comb buffers, ring-mod
+    /// phase, pitch-shifter window). Call after applying a preset so the new
+    /// effect mix doesn't inherit a pathological state from the previous mix
+    /// (e.g. a comb filter still resonating, or a biquad with stale Z-1 samples
+    /// that produce a click or, worse, a NaN that propagates).
+    func resetEffectsState() {
+        NSLog("VCP-DSP-RESET")
+        dspChain?.reset()
+    }
+
     func getLatency() -> TimeInterval {
         return audioEngine.outputNode.presentationLatency +
                audioEngine.inputNode.presentationLatency

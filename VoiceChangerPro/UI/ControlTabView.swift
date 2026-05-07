@@ -8,6 +8,7 @@ import AVFoundation
 struct ControlTabView: View {
     @ObservedObject var audioEngine: VoiceChangerAudioEngine
     @ObservedObject var recordingManager: RecordingManager
+    @State private var showingAbout = false
 
     var body: some View {
         ScrollView {
@@ -40,6 +41,9 @@ struct ControlTabView: View {
             .padding(20)
         }
         .background(Theme.background.ignoresSafeArea())
+        .sheet(isPresented: $showingAbout) {
+            AboutSheet()
+        }
     }
 
     private var header: some View {
@@ -52,8 +56,23 @@ struct ControlTabView: View {
                     .foregroundColor(.black)
             }
             Spacer()
-            statusBadge
+            HStack(spacing: 8) {
+                statusBadge
+                infoButton
+            }
         }
+    }
+
+    private var infoButton: some View {
+        Button(action: { showingAbout = true }) {
+            Image(systemName: "info")
+                .font(.system(size: 14, weight: .black))
+                .foregroundColor(.black)
+                .frame(width: 32, height: 32)
+                .overlay(Rectangle().stroke(Color.black, lineWidth: 2))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("About JB Voicechanger")
     }
 
     private var statusBadge: some View {

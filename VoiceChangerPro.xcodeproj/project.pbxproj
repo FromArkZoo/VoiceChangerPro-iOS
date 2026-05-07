@@ -27,6 +27,7 @@
 		BAU000000000000000006 /* EqualizerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAU000000000000000016 /* EqualizerView.swift */; };
 		BAU000000000000000007 /* ModulesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAU000000000000000017 /* ModulesView.swift */; };
 		BAU000000000000000008 /* PresetsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAU000000000000000018 /* PresetsView.swift */; };
+		BAU000000000000000009 /* AboutSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAU000000000000000019 /* AboutSheet.swift */; };
 		A01 /* VoiceChangerProApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51 /* VoiceChangerProApp.swift */; };
 		A02 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A52 /* ContentView.swift */; };
 		A03 /* AudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A53 /* AudioEngine.swift */; };
@@ -62,6 +63,7 @@
 		BBBF004462BE23AA7D36B1 /* R3Stretcher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBCPP003E97288CBB69B9E0 /* R3Stretcher.cpp */; };
 		VCBRBF000000000000000002 /* RubberBandBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = VCBR000000000000000002 /* RubberBandBridge.mm */; };
 		VCBRBF000000000000000003 /* RubberBandPitchShifter.swift in Sources */ = {isa = PBXBuildFile; fileRef = VCBR000000000000000003 /* RubberBandPitchShifter.swift */; };
+		VCSSBF000000000000000001 /* SignalsmithBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = VCSS000000000000000001 /* SignalsmithBridge.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -85,6 +87,7 @@
 		BAU000000000000000016 /* EqualizerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EqualizerView.swift; sourceTree = "<group>"; };
 		BAU000000000000000017 /* ModulesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModulesView.swift; sourceTree = "<group>"; };
 		BAU000000000000000018 /* PresetsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetsView.swift; sourceTree = "<group>"; };
+		BAU000000000000000019 /* AboutSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutSheet.swift; sourceTree = "<group>"; };
 		A50 /* VoiceChangerPro.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VoiceChangerPro.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A51 /* VoiceChangerProApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceChangerProApp.swift; sourceTree = "<group>"; };
 		A52 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -124,6 +127,7 @@
 		VCBR000000000000000002 /* RubberBandBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = RubberBandBridge.mm; sourceTree = "<group>"; };
 		VCBR000000000000000003 /* RubberBandPitchShifter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RubberBandPitchShifter.swift; sourceTree = "<group>"; };
 		VCBR000000000000000004 /* VoiceChangerPro-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "VoiceChangerPro-Bridging-Header.h"; sourceTree = "<group>"; };
+		VCSS000000000000000001 /* SignalsmithBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = SignalsmithBridge.mm; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -149,6 +153,7 @@
 				8BE2D5762EA3BFF5003E8361 /* Tremolo.swift */,
 				VCBR000000000000000001 /* RubberBandBridge.h */,
 				VCBR000000000000000002 /* RubberBandBridge.mm */,
+				VCSS000000000000000001 /* SignalsmithBridge.mm */,
 				VCBR000000000000000003 /* RubberBandPitchShifter.swift */,
 			);
 			path = Processing;
@@ -214,6 +219,7 @@
 				BAU000000000000000016 /* EqualizerView.swift */,
 				BAU000000000000000017 /* ModulesView.swift */,
 				BAU000000000000000018 /* PresetsView.swift */,
+				BAU000000000000000019 /* AboutSheet.swift */,
 				A55 /* VisualizationView.swift */,
 				A56 /* ControlsView.swift */,
 				A63 /* RecordingsListView.swift */,
@@ -406,6 +412,7 @@
 				BAU000000000000000006 /* EqualizerView.swift in Sources */,
 				BAU000000000000000007 /* ModulesView.swift in Sources */,
 				BAU000000000000000008 /* PresetsView.swift in Sources */,
+				BAU000000000000000009 /* AboutSheet.swift in Sources */,
 				BBBF006C42D569C51D1827 /* RubberBandStretcher.cpp in Sources */,
 				BBBF00397658C618B3B9B2 /* Allocators.cpp in Sources */,
 				BBBF002BCC637E2111D52C /* BQResampler.cpp in Sources */,
@@ -428,6 +435,7 @@
 				BBBF005A257EF2904A63CD /* StretcherProcess.cpp in Sources */,
 				BBBF004462BE23AA7D36B1 /* R3Stretcher.cpp in Sources */,
 				VCBRBF000000000000000002 /* RubberBandBridge.mm in Sources */,
+				VCSSBF000000000000000001 /* SignalsmithBridge.mm in Sources */,
 				VCBRBF000000000000000003 /* RubberBandPitchShifter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -571,11 +579,14 @@
 					"USE_PTHREADS=1",
 					"NO_THREAD_CHECKS=1",
 					"NO_TIMING=1",
+					"VCP_USE_SIGNALSMITH=1",
 				);
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/VoiceChangerPro/ThirdParty/rubberband",
 					"$(SRCROOT)/VoiceChangerPro/ThirdParty/rubberband/src",
+					"$(SRCROOT)/VoiceChangerPro/ThirdParty/signalsmith-stretch",
+					"$(SRCROOT)/VoiceChangerPro/ThirdParty/signalsmith-linear/include",
 				);
 				OTHER_CPLUSPLUSFLAGS = (
 					"$(inherited)",
@@ -626,11 +637,14 @@
 					"USE_PTHREADS=1",
 					"NO_THREAD_CHECKS=1",
 					"NO_TIMING=1",
+					"VCP_USE_SIGNALSMITH=1",
 				);
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/VoiceChangerPro/ThirdParty/rubberband",
 					"$(SRCROOT)/VoiceChangerPro/ThirdParty/rubberband/src",
+					"$(SRCROOT)/VoiceChangerPro/ThirdParty/signalsmith-stretch",
+					"$(SRCROOT)/VoiceChangerPro/ThirdParty/signalsmith-linear/include",
 				);
 				OTHER_CPLUSPLUSFLAGS = (
 					"$(inherited)",

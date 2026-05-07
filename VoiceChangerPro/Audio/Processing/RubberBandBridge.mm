@@ -1,5 +1,9 @@
 #import "RubberBandBridge.h"
 
+// Compiled only when VCP_USE_SIGNALSMITH is NOT defined. SignalsmithBridge.mm
+// is the inverse. Exactly one bridge ends up in the link.
+#ifndef VCP_USE_SIGNALSMITH
+
 #include "rubberband/RubberBandStretcher.h"
 #include <cmath>
 #include <cstring>
@@ -93,3 +97,5 @@ int rb_start_delay(RBPitchShifterRef ref) {
 }
 
 } // extern "C"
+
+#endif // !VCP_USE_SIGNALSMITH
