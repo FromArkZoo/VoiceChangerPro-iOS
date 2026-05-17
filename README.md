@@ -1,183 +1,51 @@
-# Voice Changer Pro - iOS
+# Voice Changer Pro — iOS
 
-A professional-grade voice changing app for iOS with real-time audio processing, advanced voice transformation effects, and sophisticated visualizations.
+**A low-latency iOS voice changer with formant-preserving pitch shift, time stretch, an XY morphing pad, and real-time spectrum / waveform / spectrogram visualisations. Built on AVAudioEngine with FFT via the Accelerate framework.**
 
 <p align="center">
   <img src="screenshot.png" alt="Voice Changer Pro — Bauhaus-styled control view with waveform, modulator card, and XY morph pad" width="320">
 </p>
 
-## Features
+The starting point was: what does a serious DSP pipeline look like inside a SwiftUI app, with all the processing in-process and no cloud round-trip? Voice transformation turned out to be a useful forcing function — it's hard enough that the shortcuts show up immediately.
 
-### Core Audio Processing
-- **Real-time Audio Processing** with ultra-low latency (<10ms)
-- **Advanced Pitch Shifting** with formant preservation
-- **Time Stretching** without artifacts using granular synthesis
-- **Vocal Tract Length Modification** for character voice effects
-- **Professional 3-Band EQ** (Bass, Mid, Treble)
-- **Reverb Effects** using convolution processing
-- **Bit Crushing** for digital distortion effects
-- **Noise Reduction** using spectral subtraction
+## Stack
 
-### Voice Transformation
-- **Pitch Shift**: ±12 semitones with natural sound quality
-- **Formant Shift**: 0.5x to 2.0x for gender transformation
-- **Time Stretch**: 0.5x to 2.0x speed without pitch change
-- **Vocal Tract Length**: Simulate different vocal tract sizes
-- **Master Volume Control** with proper gain staging
+- **Swift 5.9** · **SwiftUI** · iOS 17+
+- **AVAudioEngine** for the realtime audio graph (input → pitch → EQ → effects → reverb → output)
+- **Accelerate / vDSP** for FFT, spectral analysis, fundamental-frequency estimation
+- **Rubber Band** (Phase 1B) and **[Signalsmith Stretch](https://github.com/Signalsmith-Audio/signalsmith-stretch)** (Phase 2, behind `VCP_USE_SIGNALSMITH` toggle) as alternative pitch-shift backends — Signalsmith is the longer-term pick, currently being calibrated for preset stability
+- **AVAudioSession** routing + microphone permission
 
-### User Interface
-- **SwiftUI-based Modern Interface** with adaptive layouts
-- **XY Morphing Pad** for real-time parameter control
-- **Real-time Visualizations**: Waveform, Spectrum, Spectrogram
-- **Professional Level Meters** with clipping indicators
-- **Voice Preset System** with built-in and custom presets
-- **Musical Note Detection** in spectrum analyzer
+## What's in it
 
-### Built-in Voice Presets
-- Natural Male/Female voices
-- Child Voice simulation
-- Elderly Voice characteristics
-- Robot Voice with metallic effects
-- Alien Voice with otherworldly characteristics
-- Monster Voice with deep, intimidating qualities
+- Pitch shift (±12 semitones) with formant preservation
+- Formant shift (0.5×–2.0×) for character voice effects
+- Time stretch (0.5×–2.0×) decoupled from pitch via granular synthesis
+- 3-band EQ, convolution reverb, ring modulator, tremolo, bit-crush
+- XY morph pad mapping two parameters into one gesture
+- Live visualisations: waveform, spectrum (with peak-pick fundamental estimation), spectrogram
+- Preset system (Natural, Child, Elderly, Robot, Alien, Monster)
 
-## Technical Implementation
+## Honest state
 
-### Audio Engine (Core Audio + AVAudioEngine)
-- **AVAudioEngine** for low-latency audio graph processing
-- **Core Audio** for advanced DSP operations
-- **Accelerate Framework** for optimized FFT operations
-- **Real-time Audio Taps** for level monitoring and visualization
-- **Professional Audio Chain**: Input → Pitch → EQ → Effects → Reverb → Output
+**Working** — the AVAudioEngine graph runs, the Rubber Band backend is stable, visualisations are real-time, Bauhaus UI ships in [`c29dcc1`](https://github.com/FromArkZoo/VoiceChangerPro-iOS/commit/c29dcc1).
 
-### Voice Processing Algorithms
-- **FFT-based Spectral Analysis** using vDSP
-- **Fundamental Frequency Estimation** with peak picking
-- **Voice Activity Detection** using energy-based methods
-- **Spectral Centroid Calculation** for timbre analysis
-- **Circular Buffer Management** for real-time processing
+**In flight** — the Signalsmith Stretch swap compiled and ran on-device (2026-05-07), but in user testing some presets came back silent. A defensive fix (DSP state reset + NaN clamp on the output path) shipped and is awaiting retest.
 
-### User Experience
-- **Adaptive Layout** for iPhone and iPad
-- **Touch-optimized Controls** with haptic feedback
-- **Real-time Parameter Updates** with smooth interpolation
-- **Professional Color Scheme** matching the web version
-- **Accessibility Support** with VoiceOver compatibility
+**Not yet shipped to the App Store.** Privacy manifest and the production app icon are still outstanding. Build settings target sideload + TestFlight today.
 
-## Requirements
+## Build
 
-- **iOS 17.0+**
-- **iPhone/iPad** with microphone
-- **Microphone Permission** for real-time processing
-- **A12 Bionic or later** recommended for best performance
-
-## Setup Instructions
-
-### Opening in Xcode
-1. Double-click `VoiceChangerPro.xcodeproj` to open in Xcode
-2. Select your development team in Project Settings
-3. Connect your iOS device or use the simulator
-4. Build and run the project (⌘+R)
-
-### Development Setup
-1. Ensure you have **Xcode 15+** installed
-2. Select a valid **Development Team** for code signing
-3. Update the **Bundle Identifier** to match your Apple Developer account
-4. Enable **Background Audio** capability if needed
-
-### Testing on Device
-1. Connect your iPhone/iPad via USB
-2. Trust the computer when prompted on the device
-3. Select your device as the run destination in Xcode
-4. Grant microphone permissions when prompted
-
-## Project Structure
-
-```
-VoiceChangerPro/
-├── VoiceChangerProApp.swift          # Main app entry point
-├── ContentView.swift                 # Main interface coordinator
-├── Audio/
-│   ├── AudioEngine.swift            # Core audio processing engine
-│   └── VoiceProcessor.swift         # Advanced voice processing algorithms
-├── UI/
-│   ├── ControlsView.swift           # Parameter controls and morphing pad
-│   └── VisualizationView.swift     # Real-time audio visualizations
-├── Models/
-│   └── PresetManager.swift         # Voice preset management
-├── Assets.xcassets/                 # App icons and resources
-└── Info.plist                      # App configuration and permissions
+```bash
+open VoiceChangerPro.xcodeproj
 ```
 
-## Key Differences from Web Version
+Set your development team in Signing & Capabilities. Run on a real device — microphone capture in the simulator is unreliable for DSP testing.
 
-### Advantages of iOS Version
-- **Native Performance**: Direct access to hardware audio APIs
-- **Lower Latency**: Optimized audio processing pipeline
-- **Better Touch Controls**: Native iOS gesture recognition
-- **Background Processing**: Continue processing when app is backgrounded
-- **Hardware Integration**: Access to device-specific audio features
+## Why a native port
 
-### iOS-Specific Features
-- **AVAudioSession Management** for proper audio routing
-- **Core Audio Integration** for professional-grade processing
-- **Metal Shaders** for enhanced visualizations (optional)
-- **Haptic Feedback** for tactile control responses
-- **iOS Audio Unit Support** for expandable effects
-
-## Performance Optimization
-
-### Audio Processing
-- **Optimized Buffer Sizes** for minimal latency
-- **SIMD Operations** using Accelerate framework
-- **Memory Pool Management** to avoid allocations in audio thread
-- **Efficient FFT Implementation** with pre-allocated buffers
-
-### UI Rendering
-- **Canvas-based Visualizations** for smooth 60fps updates
-- **SwiftUI Optimizations** with proper state management
-- **Background Thread Processing** for heavy computations
-- **Intelligent Update Throttling** to maintain responsiveness
-
-## Known Limitations
-
-1. **iOS Audio Restrictions**: Some effects may be limited by iOS audio sandbox
-2. **Background Processing**: Full processing may be limited when backgrounded
-3. **Device Compatibility**: Older devices may experience reduced performance
-4. **Audio Latency**: Actual latency depends on device hardware and iOS version
-
-## Future Enhancements
-
-- **Audio Unit Extensions** for system-wide voice changing
-- **AI-Powered Voice Cloning** using CoreML
-- **Multi-track Recording** with voice separation
-- **Cloud Preset Sharing** with community features
-- **Advanced Formant Analysis** using LPC algorithms
-
-## Troubleshooting
-
-### Common Issues
-- **No Audio Output**: Check microphone permissions and audio session setup
-- **High Latency**: Verify buffer sizes and audio session configuration
-- **Crashes on Startup**: Ensure microphone permission is granted
-- **Poor Performance**: Close other audio apps and restart the device
-
-### Development Issues
-- **Build Errors**: Clean build folder (⌘+Shift+K) and rebuild
-- **Code Signing**: Verify development team and bundle identifier
-- **Simulator Issues**: Use physical device for audio testing
+The web version uses Web Audio worklets and works well in Chrome, but iOS Safari's Web Audio implementation has higher buffer latencies and no `AudioWorkletNode` parity, which made the morph-pad feel laggy and the pitch artefacts more pronounced. Going native let me drop into vDSP directly and pre-allocate buffers in the audio thread.
 
 ## License
 
-MIT License - See LICENSE file for details
-
-## Acknowledgments
-
-- Based on the original web version's audio processing algorithms
-- Uses Apple's Core Audio and AVAudioEngine frameworks
-- Visualization techniques inspired by professional audio software
-- UI design follows Apple's Human Interface Guidelines
-
----
-
-Built with ❤️ for iOS using SwiftUI and Core Audio
+MIT
